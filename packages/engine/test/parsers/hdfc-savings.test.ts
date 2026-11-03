@@ -81,4 +81,24 @@ describe('HDFC savings parser', () => {
   it('is picked by parseStatement', () => {
     expect(parseStatement(hdfc).account.id).toBe('hdfc-sav-1234');
   });
+
+  const head = hdfc.split('\n').slice(0, 9).join('\n');
+  const tail = 'STATEMENT SUMMARY\n';
+
+  it('reads a bracketed amount with no balance column as a debit (A-r2-05)', () => {
+    const p = hdfcSavings.parse(`${head}\n01/09/26 UPI-SOMEONE-x@okaxis 0000000000000001 01/09/26 (450.00)\n${tail}`);
+    expect(p.transactions).toHaveLength(1);
+    expect(p.transactions[0]).toMatchObject({ direction: 'debit', amount: 45000 });
+  });
+
+  it('does not trust a stale balance after a skipped row (A-r2-02)', () => {
+    const rows = [
+      '01/09/26 NEFT CR-HDFC0000001-ACME-SALARY AUG N1 01/09/26 85,000.00 1,00,000.00',
+      '31/02/26 NEFT CR-HDFC0000001-ACME-SALARY SEP N2 31/02/26 85,000.00 1,85,000.00',
+      '03/03/26 UPI-SWIGGY LIMITED-swiggy.rzp@icici-HDFC0000001-412345678902-UPI 0000412345678902 03/03/26 450.00 1,84,550.00',
+    ].join('\n');
+    const p = hdfcSavings.parse(`${head}\n${rows}\n${tail}`);
+    const c = p.transactions.find((t) => /SWIGGY/.test(t.rawDescription))!;
+    expect(c).toMatchObject({ direction: 'debit', amount: 45000 });
+  });
 });

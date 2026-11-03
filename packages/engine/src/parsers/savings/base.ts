@@ -69,10 +69,12 @@ export function makeSavingsParser(cfg: SavingsConfig): StatementParser {
     for (const row of rows) {
       const m = cfg.rowStart.exec(row);
       const date: IsoDate | null = m?.groups?.date ? parseIndianDate(m.groups.date) : null;
-      if (!m || !date) { warn(`Skipped a row with an unreadable date: ${row.slice(0, 60)}`); continue; }
-      const rest = row.slice(m[0].length);
+      const rest = m ? row.slice(m[0].length) : '';
       const amts = findAmounts(rest);
-      if (amts.length === 0) { warn(`Skipped a row with no amount: ${row.slice(0, 60)}`); continue; }
+      // A skipped row still moved the running balance: carry its balance forward, or forget it.
+      const skipBalance = () => { prev = amts.length >= 2 ? amts[amts.length - 1]!.value : undefined; };
+      if (!m || !date) { warn(`Skipped a row with an unreadable date: ${row.slice(0, 60)}`); skipBalance(); continue; }
+      if (amts.length === 0) { warn(`Skipped a row with no amount: ${row.slice(0, 60)}`); prev = undefined; continue; }
       const balA = amts.length >= 2 ? amts[amts.length - 1]! : undefined;
       const amtA = amts.length >= 2 ? amts[amts.length - 2]! : amts[0]!;
       const cut = [amtA, balA].filter((x): x is NonNullable<typeof x> => Boolean(x)).sort((a, b) => a.index - b.index);
@@ -88,12 +90,15 @@ export function makeSavingsParser(cfg: SavingsConfig): StatementParser {
 
       const balance = balA?.value;
       let direction: 'debit' | 'credit';
+      const fallback = (): 'debit' | 'credit' =>
+        amtA.marker ? (amtA.marker === 'Cr' ? 'credit' : 'debit') : amtA.negative ? 'debit' : looksCredit.test(desc) ? 'credit' : 'debit';
       if (prev !== undefined && balance !== undefined && balance !== prev) {
-        direction = balance > prev ? 'credit' : 'debit';
-        if (Math.abs(balance - prev) !== amtA.value) warn(`Row on ${date} does not match the running balance: ${desc.slice(0, 50)}`);
-      } else if (amtA.marker) direction = amtA.marker === 'Cr' ? 'credit' : 'debit';
-      else if (amtA.negative) direction = 'debit';
-      else direction = looksCredit.test(desc) ? 'credit' : 'debit';
+        if (Math.abs(balance - prev) === amtA.value) direction = balance > prev ? 'credit' : 'debit';
+        else {
+          direction = fallback();
+          warn(`Row on ${date} does not match the running balance: ${desc.slice(0, 50)}`);
+        }
+      } else direction = fallback();
       if (balance !== undefined) prev = balance;
 
       const seq = nextSeq(seen, accountId, date, amtA.value, direction, desc);
