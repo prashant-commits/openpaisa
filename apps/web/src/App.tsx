@@ -48,6 +48,21 @@ export function App() {
 
   const reset = () => { setReport(null); setFiles([]); setErrors([]); setNotice(null); };
 
+  const problems = (
+    <>
+      {notice && <p role="alert" className="card notice">{notice}</p>}
+      {errors.length > 0 && report && <h2>Files not included</h2>}
+      {errors.map((e, i) => (
+        <section key={`${e.file}-${i}`} className="card err" role="alert">
+          <h3 style={{ overflowWrap: 'anywhere' }}>{e.file}</h3>
+          <p style={{ margin: '0 0 4px' }}>{e.message}</p>
+          <a href={`${REPO_URL}/blob/main/CONTRIBUTING.md`} target="_blank" rel="noreferrer noopener">How to add support for your bank</a>
+        </section>
+      ))}
+    </>
+  );
+  const reportKey = report ? `${report.asOf}|${report.transactions.length}|${report.transactions[0]?.id ?? ''}` : '';
+
   return (
     <>
       <TrustPanel />
@@ -56,25 +71,19 @@ export function App() {
           <>
             <Upload files={files} busy={busy} onFiles={setFiles} onRun={run} onSample={() => { setErrors([]); setNotice(null); setReport(sampleReport); }} />
             {busy && <p role="status" className="card">Reading your statements on this device…</p>}
-            {notice && <p role="alert" className="card notice">{notice}</p>}
-            {errors.map((e, i) => (
-              <section key={`${e.file}-${i}`} className="card err" role="alert">
-                <h3 style={{ overflowWrap: 'anywhere' }}>{e.file}</h3>
-                <p style={{ margin: '0 0 4px' }}>{e.message}</p>
-                <a href={`${REPO_URL}/blob/main/CONTRIBUTING.md`} target="_blank" rel="noreferrer noopener">How to add support for your bank</a>
-              </section>
-            ))}
+            {problems}
           </>
         )}
         {report && (
           <>
             <div className="row"><button type="button" onClick={reset}>Start over</button></div>
+            {problems}
             <Headline report={report} />
             <section aria-labelledby="ins-h">
               <h2 id="ins-h">What to look at first</h2>
               <ul className="insights">{report.insights.map((i) => <InsightCard key={i.id} insight={i} />)}</ul>
             </section>
-            <MoneyView report={report} />
+            <MoneyView key={reportKey} report={report} />
             <ExportImport report={report} onImport={setReport} />
           </>
         )}
