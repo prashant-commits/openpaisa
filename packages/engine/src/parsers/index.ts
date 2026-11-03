@@ -1,4 +1,5 @@
 import type { ParsedStatement, StatementParser } from '../types.js';
+import { csvParser } from './csv.js';
 import { axisCard } from './cards/axis.js';
 import { hdfcCard } from './cards/hdfc.js';
 import { iciciCard } from './cards/icici.js';
@@ -10,7 +11,7 @@ import { kotakSavings } from './savings/kotak.js';
 import { sbiSavings } from './savings/sbi.js';
 
 /** Registered parsers. Lane A adds bank/card parsers here. */
-export const parsers: StatementParser[] = [hdfcSavings, iciciSavings, sbiSavings, axisSavings, kotakSavings, hdfcCard, iciciCard, sbiCard, axisCard];
+export const parsers: StatementParser[] = [hdfcSavings, iciciSavings, sbiSavings, axisSavings, kotakSavings, hdfcCard, iciciCard, sbiCard, axisCard, csvParser];
 
 /** Pick the best parser for extracted statement text and parse it. */
 export function parseStatement(text: string): ParsedStatement {
