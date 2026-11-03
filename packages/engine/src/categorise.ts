@@ -40,8 +40,17 @@ function decide(t: Transaction, overrides: Record<string, Category>): Category {
   if (t.category) return t.category;
   // A refund or reversal is money back, whatever the merchant.
   if (t.direction === 'credit' && /REFUND|REVERSAL|REVERSED|CASHBACK/i.test(t.rawDescription)) return 'refund';
+  // Salary is income whatever the employer's dictionary entry says.
+  if (t.direction === 'credit' && /\bSALARY\b|\bSAL CR\b/i.test(`${t.rawDescription} ${t.merchant ?? ''}`)) return 'salary';
   const known = fromDictionary(t);
-  if (known) return t.direction === 'credit' && SPEND.has(known) ? 'refund' : known;
+  if (known) {
+    if (t.direction === 'credit' && SPEND.has(known)) {
+      // A bank transfer from a company is not a merchant refund: leave it to the keyword rules.
+      if (t.channel === 'neft' || t.channel === 'rtgs' || t.channel === 'imps') return fromKeywords(t);
+      return 'refund';
+    }
+    return known;
+  }
   return fromKeywords(t);
 }
 

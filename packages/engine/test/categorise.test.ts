@@ -138,3 +138,20 @@ describe('categorise: precedence', () => {
     expect(categoriseTransactions([t])[0]!.category).toBe('food_delivery');
   });
 });
+
+describe('categorise: salary and bank-transfer credits (A-r2-01)', () => {
+  it.each(['AMAZON DEVELOPMENT CENTRE INDIA', 'FLIPKART INTERNET PVT LTD', 'SWIGGY LIMITED', 'MICROSOFT INDIA', 'HDFC LIFE INSURANCE', 'ZERODHA BROKING'])(
+    'a salary credit from %s is salary', (employer) => {
+      expect(cat(`NEFT CR-HDFC0000001-${employer}-SALARY OCT N245678901`, 'credit')).toBe('salary');
+    });
+  it('a bank transfer credit from a merchant-dictionary company is not a refund', () => {
+    expect(cat('NEFT CR-HDFC0000001-AMAZON DEVELOPMENT CENTRE INDIA-OCT N245678901', 'credit')).not.toBe('refund');
+  });
+  it('a UPI merchant credit is still a refund', () => {
+    expect(cat('UPI/CR/412345678901/SWIGGY/yesb/swiggy@yesbank', 'credit')).toBe('refund');
+  });
+  it('an override still beats the salary rule', () => {
+    const t = normaliseTransactions([mk('NEFT CR-HDFC0000001-AMAZON DEVELOPMENT CENTRE INDIA-SALARY OCT N1', 'credit')]);
+    expect(categoriseTransactions(t, { Amazon: 'shopping' })[0]!.category).toBe('shopping');
+  });
+});
