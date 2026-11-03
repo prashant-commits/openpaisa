@@ -58,6 +58,17 @@ export function buildFlows(txns: Transaction[], salaryDay?: number): MonthlyFlow
   return [...cycles.values()].sort((a, b) => compareIso(a.cycleStart, b.cycleStart));
 }
 
+/** The statement with the latest due date for each credit card account. */
+export function latestCardStatements(statements: ParsedStatement[]): ParsedStatement[] {
+  const latest = new Map<string, ParsedStatement>();
+  for (const s of statements) {
+    if (!s.card) continue;
+    const prev = latest.get(s.account.id);
+    if (!prev || compareIso(s.card.dueDate, (prev.card as NonNullable<ParsedStatement['card']>).dueDate) > 0) latest.set(s.account.id, s);
+  }
+  return [...latest.values()];
+}
+
 export function buildUpcoming(recurring: RecurringPayment[], statements: ParsedStatement[], loans: Loan[], asOf: IsoDate): UpcomingOutflow[] {
   const end = addDays(asOf, UPCOMING_DAYS);
   const out: UpcomingOutflow[] = [];
@@ -84,13 +95,7 @@ export function buildUpcoming(recurring: RecurringPayment[], statements: ParsedS
     }
   }
 
-  const latestCard = new Map<string, ParsedStatement>();
-  for (const s of statements) {
-    if (!s.card) continue;
-    const prev = latestCard.get(s.account.id);
-    if (!prev || compareIso(s.card.dueDate, (prev.card as NonNullable<ParsedStatement['card']>).dueDate) > 0) latestCard.set(s.account.id, s);
-  }
-  for (const s of latestCard.values()) {
+  for (const s of latestCardStatements(statements)) {
     const c = s.card as NonNullable<ParsedStatement['card']>;
     if (c.totalDue > 0 && compareIso(c.dueDate, asOf) >= 0 && compareIso(c.dueDate, end) <= 0) {
       out.push({ date: c.dueDate, label: `${s.account.institution} card due`, amount: c.totalDue, source: 'card_due' });

@@ -36,7 +36,8 @@ function median(nums: number[]): number {
   return s.length % 2 ? (s[mid] as number) : ((s[mid - 1] as number) + (s[mid] as number)) / 2;
 }
 
-function clusterKey(t: Transaction): string {
+/** Normalised payee identity: the merchant when known, else the leading words of the description. */
+export function payeeKey(t: Transaction): string {
   if (t.merchant) return t.merchant.trim().toLowerCase();
   return t.rawDescription.toUpperCase().replace(/[^A-Z]+/g, ' ').split(' ').filter((w) => w.length >= 3).slice(0, 3).join(' ');
 }
@@ -200,7 +201,7 @@ export function detectRecurring(txns: Transaction[], asOf: IsoDate): RecurringPa
   for (const t of txns) {
     if (t.direction !== 'debit') continue;
     if (t.category && EXCLUDED.has(t.category)) continue;
-    const key = clusterKey(t);
+    const key = payeeKey(t);
     if (!key) continue;
     groups.set(key, [...(groups.get(key) ?? []), t]);
   }
