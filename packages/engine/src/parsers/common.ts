@@ -37,7 +37,7 @@ export function splitLines(text: string): string[] {
 export interface AmountMatch {
   value: Paise;
   marker?: 'Dr' | 'Cr';
-  /** Printed with a leading minus sign. Cards read it as a credit, savings and CSV as a debit. */
+  /** Printed with a leading minus sign or in brackets. Cards read it as a credit, savings and CSV as a debit. */
   negative?: boolean;
   index: number;
   length: number;
@@ -54,10 +54,10 @@ export function findAmounts(line: string, opts: { letterMarkers?: boolean } = {}
     const value = Number(m[3]!.replace(/,/g, '')) * 100 + Number(m[4]);
     const bracketed = Boolean(m[1] && m[5]);
     const letter = m[6]?.toLowerCase();
-    const marker: 'Dr' | 'Cr' | undefined = letter ? (letter[0] === 'd' ? 'Dr' : 'Cr') : bracketed ? 'Cr' : undefined;
+    const marker: 'Dr' | 'Cr' | undefined = letter ? (letter[0] === 'd' ? 'Dr' : 'Cr') : undefined;
     const a: AmountMatch = { value, index: m.index ?? 0, length: m[0].length };
     if (marker) a.marker = marker;
-    if (m[2]) a.negative = true;
+    if (m[2] || (bracketed && !marker)) a.negative = true;
     out.push(a);
   }
   return out;

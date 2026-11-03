@@ -95,4 +95,10 @@ describe('HDFC Bank credit card parser', () => {
     expect(g.transactions.find((t) => /PAYMENT RECEIVED/.test(t.rawDescription))).toMatchObject({ direction: 'credit', amount: 1120000 });
     expect(g.transactions).toHaveLength(s.transactions.length);
   });
+
+  it('reads a bracketed amount as a credit (A-r2-05)', () => {
+    const txt = hdfcCardTxt.replace('13/10/2026 PAYMENT RECEIVED - THANK YOU 11,200.00 Cr', '13/10/2026 PAYMENT RECEIVED - THANK YOU (11,200.00)');
+    const t = hdfcCard.parse(txt).transactions.find((x) => /PAYMENT RECEIVED/.test(x.rawDescription));
+    expect(t).toMatchObject({ direction: 'credit', amount: 1120000 });
+  });
 });

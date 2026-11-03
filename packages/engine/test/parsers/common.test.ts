@@ -33,7 +33,8 @@ describe('extractAmounts', () => {
   });
   it('handles Cr, brackets, lakh grouping and ignores refs and rates', () => {
     expect(extractAmounts('PAYMENT 1,00,000.00 Cr')).toEqual([{ value: 10000000, marker: 'Cr' }]);
-    expect(extractAmounts('REFUND (1,000.00)')).toEqual([{ value: 100000, marker: 'Cr' }]);
+    expect(findAmounts('REFUND (1,000.00)')).toEqual([expect.objectContaining({ value: 100000, negative: true })]);
+    expect(findAmounts('REFUND (1,000.00)')[0]!.marker).toBeUndefined();
     expect(extractAmounts('ref 412345678901 rate 8.75% 250.50')).toEqual([{ value: 25050 }]);
   });
   it('accepts a bracketed marker', () => {
