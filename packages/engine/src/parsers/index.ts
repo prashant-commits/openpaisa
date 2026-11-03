@@ -1,8 +1,12 @@
 import type { ParsedStatement, StatementParser } from '../types.js';
+import { axisSavings } from './savings/axis.js';
 import { hdfcSavings } from './savings/hdfc.js';
+import { iciciSavings } from './savings/icici.js';
+import { kotakSavings } from './savings/kotak.js';
+import { sbiSavings } from './savings/sbi.js';
 
 /** Registered parsers. Lane A adds bank/card parsers here. */
-export const parsers: StatementParser[] = [hdfcSavings];
+export const parsers: StatementParser[] = [hdfcSavings, iciciSavings, sbiSavings, axisSavings, kotakSavings];
 
 /** Pick the best parser for extracted statement text and parse it. */
 export function parseStatement(text: string): ParsedStatement {
