@@ -1,7 +1,8 @@
 import type { ParsedStatement, StatementParser } from '../types.js';
+import { hdfcSavings } from './savings/hdfc.js';
 
 /** Registered parsers. Lane A adds bank/card parsers here. */
-export const parsers: StatementParser[] = [];
+export const parsers: StatementParser[] = [hdfcSavings];
 
 /** Pick the best parser for extracted statement text and parse it. */
 export function parseStatement(text: string): ParsedStatement {

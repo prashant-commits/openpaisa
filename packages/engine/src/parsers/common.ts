@@ -150,7 +150,7 @@ export function firstDate(s: string): IsoDate | null {
 
 /** Statement period from a "<date> to <date>" pair anywhere in the header lines. */
 export function findPeriod(lines: string[]): { start?: IsoDate; end?: IsoDate } {
-  const re = new RegExp(`(${DATE_SRC})\\s*(?:to|TO|To|-|–)\\s*(${DATE_SRC})`);
+  const re = new RegExp(`(${DATE_SRC})\\s*(?:to|-|–)\\s*:?\\s*(${DATE_SRC})`, 'i');
   for (const l of lines.slice(0, 40)) {
     const m = re.exec(l);
     if (!m) continue;
