@@ -8,10 +8,12 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@openpaisa/engine": "*",
+    "pdfjs-dist": "5.7.284",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
