@@ -93,6 +93,13 @@ describe('normaliseTransactions', () => {
   });
 });
 
+describe('matchMerchant: LPG vs fuel (A-r3-02)', () => {
+  it('puts an Indian Oil gas payment under utilities and petrol under fuel', () => {
+    expect(matchMerchant('UPI/DR/412345678901/INDIAN OIL GAS/sbin/indane@sbi')).toMatchObject({ name: 'Indane Gas', category: 'utilities' });
+    expect(matchMerchant('POS INDIAN OIL PETROL PUMP')).toMatchObject({ name: 'Indian Oil', category: 'fuel' });
+  });
+});
+
 describe('matchMerchant', () => {
   it('matches on word boundaries only', () => {
     expect(matchMerchant('rahul@okaxis')).toBeNull();
