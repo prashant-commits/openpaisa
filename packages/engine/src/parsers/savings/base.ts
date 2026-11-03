@@ -92,6 +92,7 @@ export function makeSavingsParser(cfg: SavingsConfig): StatementParser {
         direction = balance > prev ? 'credit' : 'debit';
         if (Math.abs(balance - prev) !== amtA.value) warn(`Row on ${date} does not match the running balance: ${desc.slice(0, 50)}`);
       } else if (amtA.marker) direction = amtA.marker === 'Cr' ? 'credit' : 'debit';
+      else if (amtA.negative) direction = 'debit';
       else direction = looksCredit.test(desc) ? 'credit' : 'debit';
       if (balance !== undefined) prev = balance;
 

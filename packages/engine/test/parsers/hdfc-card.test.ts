@@ -86,4 +86,13 @@ describe('HDFC Bank credit card parser', () => {
   it('is picked by parseStatement', () => {
     expect(parseStatement(text).account.id).toBe('hdfc-cc-4321');
   });
+
+  it('reads Rs.-glued summary amounts and credits printed as negatives (A-r1-05)', () => {
+    const glued = text.replace(/Rs\. /g, 'Rs.').replace('PAYMENT RECEIVED - THANK YOU 11,200.00 Cr', 'PAYMENT RECEIVED - THANK YOU -11,200.00');
+    const g = hdfcCard.parse(glued);
+    expect(g.card).toEqual(s.card);
+    expect(g.account.creditLimit).toBe(20000000);
+    expect(g.transactions.find((t) => /PAYMENT RECEIVED/.test(t.rawDescription))).toMatchObject({ direction: 'credit', amount: 1120000 });
+    expect(g.transactions).toHaveLength(s.transactions.length);
+  });
 });

@@ -74,7 +74,7 @@ export function makeCardParser(cfg: CardConfig): StatementParser {
       const a = amts[amts.length - 1];
       if (!a) { warnings.push(`Skipped a row with no amount: ${row.slice(0, 60)}`); rowWarnings++; continue; }
       const desc = `${rest.slice(0, a.index)} ${rest.slice(a.index + a.length)}`.replace(/\s+/g, ' ').trim();
-      const direction = a.marker === 'Cr' ? 'credit' : 'debit';
+      const direction = a.marker === 'Cr' || a.negative ? 'credit' : 'debit';
       const seq = nextSeq(seen, accountId, date, a.value, direction, desc);
       txns.push(makeTransaction({ accountId, date, amount: a.value, direction, rawDescription: desc, seq }));
     }

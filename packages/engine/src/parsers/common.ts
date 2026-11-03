@@ -37,6 +37,8 @@ export function splitLines(text: string): string[] {
 export interface AmountMatch {
   value: Paise;
   marker?: 'Dr' | 'Cr';
+  /** Printed with a leading minus sign. Cards read it as a credit, savings and CSV as a debit. */
+  negative?: boolean;
   index: number;
   length: number;
 }
@@ -44,15 +46,18 @@ export interface AmountMatch {
 /** Find every money amount in a line (must have two decimals, so refs and rates are ignored). */
 export function findAmounts(line: string, opts: { letterMarkers?: boolean } = {}): AmountMatch[] {
   const mk = opts.letterMarkers ? 'Dr|Cr|D|C' : 'Dr|Cr';
-  const re = new RegExp(`(\\()?(?<![\\w.,/-])(\\d{1,3}(?:,\\d{2,3})+|\\d+)\\.(\\d{2})(?![\\d%])(\\))?(?:\\s*\\(?\\b(${mk})\\b\\)?(?![\\w]))?`, 'gi');
+  // The amount may follow 'Rs.' / 'Rs' / 'INR' / the rupee sign, or carry a leading minus after whitespace.
+  const start = '(?:(?<!\\S)(-)|(?<![\\w.,/-])|(?<=\\b(?:Rs|INR)\\.?\\s?)|(?<=\u20B9\\s?))';
+  const re = new RegExp(`(\\()?${start}(\\d{1,3}(?:,\\d{2,3})+|\\d+)\\.(\\d{2})(?![\\d%])(\\))?(?:\\s*\\(?\\b(${mk})\\b\\)?(?![\\w]))?`, 'gi');
   const out: AmountMatch[] = [];
   for (const m of line.matchAll(re)) {
-    const value = Number(m[2]!.replace(/,/g, '')) * 100 + Number(m[3]);
-    const bracketed = Boolean(m[1] && m[4]);
-    const letter = m[5]?.toLowerCase();
+    const value = Number(m[3]!.replace(/,/g, '')) * 100 + Number(m[4]);
+    const bracketed = Boolean(m[1] && m[5]);
+    const letter = m[6]?.toLowerCase();
     const marker: 'Dr' | 'Cr' | undefined = letter ? (letter[0] === 'd' ? 'Dr' : 'Cr') : bracketed ? 'Cr' : undefined;
     const a: AmountMatch = { value, index: m.index ?? 0, length: m[0].length };
     if (marker) a.marker = marker;
+    if (m[2]) a.negative = true;
     out.push(a);
   }
   return out;

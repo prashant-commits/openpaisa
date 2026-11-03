@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assembleRows, checkBalances, extractAmounts, makeId, makeTransaction, parseIndianDate } from '../../src/parsers/common.js';
+import { assembleRows, checkBalances, extractAmounts, findAmounts, makeId, makeTransaction, parseIndianDate } from '../../src/parsers/common.js';
 import type { Transaction } from '../../src/types.js';
 
 const tx = (amount: number, direction: 'debit' | 'credit', seq = 0): Transaction =>
@@ -38,6 +38,25 @@ describe('extractAmounts', () => {
   });
   it('accepts a bracketed marker', () => {
     expect(extractAmounts('FEE 99.00(Dr) 1,000.00(Cr)')).toEqual([{ value: 9900, marker: 'Dr' }, { value: 100000, marker: 'Cr' }]);
+  });
+});
+
+describe('findAmounts: Rs. prefixes and minus signs (A-r1-05)', () => {
+  it('reads an amount glued to Rs., Rs, INR or the rupee sign', () => {
+    expect(findAmounts('Total Amount Due : Rs.11,728.53').map((a) => a.value)).toEqual([1172853]);
+    expect(findAmounts('Due Rs 500.00 INR1,000.50 \u20B9250.00').map((a) => a.value)).toEqual([50000, 100050, 25000]);
+  });
+  it('reports a leading minus as negative', () => {
+    const [a] = findAmounts('PAYMENT RECEIVED -11,200.00');
+    expect(a).toMatchObject({ value: 1120000, negative: true });
+    expect(findAmounts('-11,200.00')[0]).toMatchObject({ value: 1120000, negative: true });
+    expect(findAmounts('PAYMENT 11,200.00')[0]!.negative).toBeUndefined();
+  });
+  it('still rejects refs and glued tokens', () => {
+    expect(findAmounts('REF N245678901.50')).toEqual([]);
+    expect(findAmounts('XXXX1234.56')).toEqual([]);
+    expect(findAmounts('NEFT-123.45')).toEqual([]);
+    expect(findAmounts('UTR/12.50')).toEqual([]);
   });
 });
 
