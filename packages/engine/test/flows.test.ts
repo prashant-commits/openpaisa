@@ -141,6 +141,18 @@ describe('safeToSpend', () => {
   });
 });
 
+describe('buildUpcoming month-end billers (B-r3-02)', () => {
+  it('keeps the 31st after a short month', () => {
+    const gym = [txn({ date: '2025-11-30', amount: 1500, merchant: 'Iron Gym', category: 'health' }), txn({ date: '2025-12-31', amount: 1500, merchant: 'Iron Gym', category: 'health' }), txn({ date: '2026-01-31', amount: 1500, merchant: 'Iron Gym', category: 'health' })];
+    const recurring = detectRecurring(gym, '2026-02-02');
+    expect(recurring[0]?.nextExpectedDate).toBe('2026-02-28');
+    const up = buildUpcoming(recurring, [], [], '2026-02-02').filter((u) => u.label === 'Iron Gym').map((u) => u.date);
+    expect(up).toEqual(['2026-02-28']);
+    const later = buildUpcoming(recurring, [], [], '2026-02-20').filter((u) => u.label === 'Iron Gym').map((u) => u.date);
+    expect(later).toEqual(['2026-02-28', '2026-03-31']);
+  });
+});
+
 describe('buildUpcoming loans already in recurring', () => {
   it('B-r1-05: does not add a loan twice when its NACH series is kind other', () => {
     const t = monthly('', 12500, '2026-06-05', 5, { category: 'shopping', merchant: undefined, channel: 'nach' }).map((x, i) => ({ ...x, rawDescription: `NACH AXIS PERSONAL LOAN EMI ${i}` }));
