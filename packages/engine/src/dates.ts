@@ -37,3 +37,19 @@ export function diffDays(a: IsoDate, b: IsoDate): number {
 export function compareIso(a: IsoDate, b: IsoDate): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
+
+/** The ISO date for year/month(1-12)/day, with the day clamped to the month's length. */
+export function clampedDate(year: number, month: number, day: number): IsoDate {
+  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return format(Date.UTC(year, month - 1, Math.min(day, last)));
+}
+
+/** Day of month (1-31) of an ISO date. */
+export function dayOf(d: IsoDate): number {
+  return Number(d.slice(8, 10));
+}
+
+/** True when the date is the last day of its month. */
+export function isMonthEnd(d: IsoDate): boolean {
+  return addDays(d, 1).slice(8, 10) === '01';
+}

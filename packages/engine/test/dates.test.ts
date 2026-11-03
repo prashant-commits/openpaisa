@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, addMonths, compareIso, diffDays } from '../src/dates.js';
+import { addDays, addMonths, clampedDate, compareIso, dayOf, diffDays, isMonthEnd } from '../src/dates.js';
 import { monthly, statement, txn } from './builders.js';
 
 describe('dates', () => {
@@ -24,6 +24,20 @@ describe('dates', () => {
     expect(compareIso('2026-01-01', '2026-01-02')).toBeLessThan(0);
     expect(compareIso('2026-01-02', '2026-01-01')).toBeGreaterThan(0);
     expect(compareIso('2026-01-01', '2026-01-01')).toBe(0);
+  });
+});
+
+describe('calendar helpers', () => {
+  it('clampedDate clamps to month length', () => {
+    expect(clampedDate(2026, 2, 31)).toBe('2026-02-28');
+    expect(clampedDate(2028, 2, 31)).toBe('2028-02-29');
+    expect(clampedDate(2026, 4, 25)).toBe('2026-04-25');
+  });
+  it('dayOf and isMonthEnd', () => {
+    expect(dayOf('2026-03-09')).toBe(9);
+    expect(isMonthEnd('2026-02-28')).toBe(true);
+    expect(isMonthEnd('2026-02-27')).toBe(false);
+    expect(isMonthEnd('2028-02-28')).toBe(false);
   });
 });
 
