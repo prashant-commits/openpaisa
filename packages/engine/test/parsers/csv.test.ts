@@ -97,4 +97,30 @@ describe('generic CSV parser', () => {
   it('is picked by parseStatement', () => {
     expect(parseStatement(simple).account.institution).toBe('Unknown');
   });
+
+  it('reads a signed single Amount column with a Balance column (A-r1-03)', () => {
+    const csv = `Date,Description,Amount,Balance
+01/11/2026,SALARY ACME,85000.00,185000.00
+03/11/2026,NETFLIX,-649.00,184351.00
+04/11/2026,REFUND MYNTRA,"1,200.00","185,551.00"
+`;
+    const s = csvParser.parse(csv);
+    expect(s.transactions.map((t) => [t.direction, t.amount])).toEqual([['credit', 8500000], ['debit', 64900], ['credit', 120000]]);
+  });
+
+  it('reads a signed single Amount column without a Balance column (A-r1-03)', () => {
+    const csv = `Date,Description,Amount
+01/11/2026,SALARY ACME,85000.00
+03/11/2026,NETFLIX,-649.00
+05/11/2026,Plain rent,(15000.00)
+`;
+    const s = csvParser.parse(csv);
+    expect(s.transactions.map((t) => [t.direction, t.amount])).toEqual([['credit', 8500000], ['debit', 64900], ['debit', 1500000]]);
+    expect(s.warnings.filter((w) => /Skipped/.test(w))).toEqual([]);
+  });
+
+  it('still skips an unsigned amount with nothing to decide the direction', () => {
+    const s = csvParser.parse(`Date,Description,Amount\n01/11/2026,MYSTERY,100.00\n`);
+    expect(s.transactions).toHaveLength(0);
+  });
 });

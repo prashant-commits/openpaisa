@@ -93,6 +93,9 @@ export const csvParser: StatementParser = {
     const txns: Transaction[] = [];
     const seen = new Map<string, number>();
     let prev: Paise | undefined;
+    // A lone Amount column that shows a leading '-' or brackets anywhere is signed: bare positives are credits.
+    const signedAmounts = cols.amount >= 0 && cols.debit < 0 && cols.credit < 0 &&
+      records.slice(header.at + 1).some((r) => { const a = money(r[cols.amount]); return Boolean(a && (a.negative || a.bracket)); });
 
     for (const rec of records.slice(header.at + 1)) {
       if (rec.every((c) => c.trim() === '')) continue;
@@ -117,6 +120,7 @@ export const csvParser: StatementParser = {
           if (m) direction = m === 'Cr' ? 'credit' : 'debit';
           else if (a.negative) direction = 'debit';
           else if (a.bracket) direction = 'debit';
+          else if (signedAmounts) direction = 'credit';
           else if (prev !== undefined && balance !== undefined && balance !== prev) direction = balance > prev ? 'credit' : 'debit';
         }
       }
