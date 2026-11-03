@@ -22,6 +22,18 @@ describe('detectSalaryDay', () => {
   });
 });
 
+describe('detectSalaryDay without a SALARY keyword (FINAL-r1-04)', () => {
+  const pay = (d: string, merchant = 'Infosys Limited', amount = 120000) =>
+    txn({ date: d, amount, direction: 'credit', category: 'other', merchant, channel: 'neft', rawDescription: `NEFT CR-ICIC0000104-${merchant}-N2456` });
+  it('falls back to the largest same-payee credit series', () => {
+    expect(detectSalaryDay([pay('2026-08-01'), pay('2026-09-01'), pay('2026-10-02'), pay('2026-08-15', 'Small Co Ltd', 3000), pay('2026-09-20', 'Small Co Ltd', 3000)])).toBe(1);
+  });
+  it('ignores a series with wildly different amounts or a single month', () => {
+    expect(detectSalaryDay([pay('2026-08-01', 'X Ltd', 1000), pay('2026-09-01', 'X Ltd', 5000)])).toBeUndefined();
+    expect(detectSalaryDay([pay('2026-10-01')])).toBeUndefined();
+  });
+});
+
 describe('buildFlows', () => {
   it('uses calendar months without a salary day', () => {
     const flows = buildFlows([

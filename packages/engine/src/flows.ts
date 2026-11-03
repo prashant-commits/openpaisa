@@ -24,8 +24,32 @@ export function detectSalaryDay(txns: Transaction[]): number | undefined {
     // Several salary-like credits in one month: keep the largest by taking the first seen per month.
     if (!byMonth.has(month)) byMonth.set(month, day);
   }
-  if (byMonth.size < 2) return undefined;
-  return Math.round(median([...byMonth.values()]));
+  if (byMonth.size >= 2) return Math.round(median([...byMonth.values()]));
+  if (byMonth.size > 0) return undefined;
+  return payrollSeriesDay(txns);
+}
+
+/**
+ * No credit says SALARY: fall back to the largest same-payee credit series (category other)
+ * seen in at least two calendar months with amounts within 10% of their median.
+ */
+function payrollSeriesDay(txns: Transaction[]): number | undefined {
+  const byPayee = new Map<string, Transaction[]>();
+  for (const t of txns) {
+    if (t.direction !== 'credit' || t.category !== 'other' || !t.merchant) continue;
+    byPayee.set(t.merchant, [...(byPayee.get(t.merchant) ?? []), t]);
+  }
+  let best: { amount: number; day: number } | undefined;
+  for (const list of byPayee.values()) {
+    const mid = median(list.map((t) => t.amount));
+    const near = list.filter((t) => Math.abs(t.amount - mid) <= mid * 0.1);
+    const months = new Map<string, Transaction>();
+    for (const t of near) if (!months.has(t.date.slice(0, 7))) months.set(t.date.slice(0, 7), t);
+    if (months.size < 2) continue;
+    const day = Math.round(median([...months.values()].map((t) => (isMonthEnd(t.date) ? 31 : dayOf(t.date)))));
+    if (!best || mid > best.amount) best = { amount: mid, day };
+  }
+  return best?.day;
 }
 
 function cycleStart(date: IsoDate, salaryDay?: number): IsoDate {

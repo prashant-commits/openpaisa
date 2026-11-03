@@ -13,6 +13,10 @@ function fromDictionary(t: Transaction): Category | undefined {
   return entry.category;
 }
 
+/** A payee that looks like an organisation: a bank credit from it is income (payroll, payouts), not a person's transfer. */
+const ORG_PAYEE =
+  /\b(?:LTD|LIMITED|PVT|PRIVATE|LLP|INC|CORP|CORPORATION|TECHNOLOGIES|TECH|SERVICES|SOLUTIONS|SYSTEMS|CONSULTING|INDUSTRIES|ENTERPRISES|FOUNDATION|TRUST|GOVT)\b/;
+
 function fromKeywords(t: Transaction): Category {
   const text = `${t.rawDescription} ${t.merchant ?? ''}`.toUpperCase();
   const credit = t.direction === 'credit';
@@ -28,6 +32,7 @@ function fromKeywords(t: Transaction): Category {
   if (t.channel === 'upi' || t.channel === 'imps' || t.channel === 'neft' || t.channel === 'rtgs') {
     // Money from a person is not income; money to a person is a transfer only when marked person-to-person.
     // Any other unrecognised debit (including P2M) is spend.
+    if (credit && ORG_PAYEE.test(text) && !/\bP2[AP]\b/.test(text) && t.channel !== 'upi' && t.channel !== 'imps') return 'other';
     if (credit || /\bP2[AP]\b/.test(text)) return 'transfers';
     return 'other';
   }
