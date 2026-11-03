@@ -48,7 +48,7 @@ export function findAmounts(line: string, opts: { letterMarkers?: boolean } = {}
   const mk = opts.letterMarkers ? 'Dr|Cr|D|C' : 'Dr|Cr';
   // The amount may follow 'Rs.' / 'Rs' / 'INR' / the rupee sign, or carry a leading minus after whitespace.
   const start = '(?:(?<!\\S)(-)|(?<![\\w.,/-])|(?<=\\b(?:Rs|INR)\\.?\\s?)|(?<=\u20B9\\s?))';
-  const re = new RegExp(`(\\()?${start}(\\d{1,3}(?:,\\d{2,3})+|\\d+)\\.(\\d{2})(?![\\d%])(\\))?(?:\\s*\\(?\\b(${mk})\\b\\)?(?![\\w]))?`, 'gi');
+  const re = new RegExp(`(\\()?${start}(\\d{1,3}(?:,\\d{2,3})+|\\d+)\\.(\\d{2})(?![\\d%])(\\))?(?:\\s*\\(?(${mk})\\)?(?![\\w]))?`, 'gi');
   const out: AmountMatch[] = [];
   for (const m of line.matchAll(re)) {
     const value = Number(m[3]!.replace(/,/g, '')) * 100 + Number(m[4]);
