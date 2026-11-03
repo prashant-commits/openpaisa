@@ -278,13 +278,16 @@ export function buildInsights(ctx: InsightContext): Insight[] {
         kind: 'forgotten_subscription',
         severity: 'warn',
         title: `${r.merchant} has charged ${formatINR(r.typicalAmount)} ${FREQ_WORD[r.frequency]} for ${r.occurrences.length} payments`,
-        detail: `${r.occurrences.length} payments, the latest on ${r.lastDate}. At this rate it costs ${formatINR(r.annualCost)} a year.`,
+        detail: `${r.occurrences.length} payments, the latest on ${r.lastDate}. At this rate it costs ${formatINR(r.annualCost)} a year.${
+          r.priceChange && r.priceChange.to > r.priceChange.from ? ` It went up from ${formatINR(r.priceChange.from)} to ${formatINR(r.priceChange.to)} on ${r.priceChange.on}.` : ''
+        }`,
         annualImpact: r.annualCost,
         transactionIds: r.occurrences,
         action: { label: 'Cancel', kind: 'cancel' },
       });
+      covered.add(r.id);
     }
-    if (r.priceChange && r.priceChange.to > r.priceChange.from) {
+    if (!covered.has(r.id) && r.priceChange && r.priceChange.to > r.priceChange.from) {
       const diff = r.priceChange.to - r.priceChange.from;
       const impact = diff * periodsPerYear(r);
       insights.push({

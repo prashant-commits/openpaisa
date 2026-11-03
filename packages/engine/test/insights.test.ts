@@ -55,6 +55,21 @@ describe('subscriptions', () => {
     expect(out.filter((i) => i.kind === 'duplicate_subscription')).toHaveLength(1);
     expect(kinds(out)).not.toContain('forgotten_subscription');
   });
+  it('emits one leak insight for a forgotten subscription that also had a price step (FINAL-r1-02)', () => {
+    const t = [...monthly('Tiny App', 129, '2026-04-09', 4, { category: 'subscriptions' }), ...monthly('Tiny App', 149, '2026-08-09', 3, { category: 'subscriptions' })];
+    const out = buildInsights(ctx(t));
+    const leaks = out.filter((i) => ['forgotten_subscription', 'price_increase', 'duplicate_subscription'].includes(i.kind));
+    expect(leaks.map((i) => i.kind)).toEqual(['forgotten_subscription']);
+    expect(leaks[0]?.annualImpact).toBe(14900 * 12);
+  });
+  it('does not flag a lone Netflix as a duplicate subscription (B-r3-03)', () => {
+    expect(kinds(buildInsights(ctx(monthly('Netflix', 649, '2026-05-05', 6, { category: 'subscriptions' }))))).not.toContain('duplicate_subscription');
+  });
+  it('does not flag an EMI on two accounts as a duplicate subscription (B-r3-03)', () => {
+    const a = monthly('HDFC Ltd', 12000, '2026-05-05', 6, { category: 'emi', channel: 'nach' });
+    const b = monthly('HDFC Ltd', 12000, '2026-05-06', 6, { category: 'emi', channel: 'nach', accountId: 'icici-cc-5678' });
+    expect(kinds(buildInsights(ctx([...a, ...b])))).not.toContain('duplicate_subscription');
+  });
   it('flags price increases with yearly impact', () => {
     const t = [...monthly('Netflix', 499, '2026-04-05', 3, { category: 'subscriptions' }), ...monthly('Netflix', 649, '2026-07-05', 4, { category: 'subscriptions' })];
     const p = buildInsights(ctx(t)).find((i) => i.kind === 'price_increase');
