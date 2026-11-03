@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "build": "npm run build -w @openpaisa/engine && npm run build -w @openpaisa/web",
-    "test": "npm run test -w @openpaisa/engine",
+    "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "check:no-network": "node scripts/check-no-network.mjs",
     "dev": "npm run dev -w @openpaisa/web"

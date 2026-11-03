@@ -168,6 +168,16 @@ export interface UpcomingOutflow {
   source: 'recurring' | 'card_due' | 'emi';
 }
 
+export interface CardSummary {
+  accountId: string;
+  totalDue: Paise;
+  minimumDue: Paise;
+  dueDate: IsoDate;
+  statementDate?: IsoDate;
+  creditLimit?: Paise;
+  utilisationPct?: number;            // totalDue / creditLimit * 100, 1 dp
+}
+
 export interface AuditInput {
   statements: ParsedStatement[];
   asOf: IsoDate;
@@ -186,5 +196,6 @@ export interface AuditReport {
   headline: { annualLeak: Paise; recurringAnnual: Paise; emiMonthly: Paise };
   flows: MonthlyFlow[];
   upcoming: UpcomingOutflow[];        // next 45 days
+  cards: CardSummary[];               // latest statement per credit card
   safeToSpend?: { untilDate: IsoDate; amount: Paise };
 }
