@@ -20,7 +20,9 @@ a { color: var(--accent); }
 h1, h2, h3 { line-height: 1.2; margin: 0 0 .5rem; }
 h2 { font-size: 1.25rem; } h3 { font-size: 1.05rem; }
 .wrap { max-width: 960px; margin: 0 auto; padding: 0 16px; }
-main.wrap { padding-top: 16px; padding-bottom: 48px; display: grid; gap: 16px; }
+main.wrap { padding-top: 16px; padding-bottom: 48px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+.tabpanel { grid-template-columns: minmax(0, 1fr); }
+main.wrap > *, .tabpanel > * { min-width: 0; }
 .trust { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 0; font-size: .9rem; }
 .trust .wrap { display: grid; gap: 4px; }
 .trust strong { font-size: 1rem; }
@@ -53,7 +55,7 @@ input[type=text], input[type=password], input[type=search], input[type=number], 
 .tablist [role=tab] { border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; white-space: nowrap; }
 .tablist [role=tab][aria-selected=true] { border-bottom-color: var(--accent); font-weight: 700; }
 .tabpanel { padding-top: 16px; display: grid; gap: 16px; }
-.tablewrap { overflow-x: auto; }
+.tablewrap { overflow-x: auto; position: relative; }
 table { border-collapse: collapse; width: 100%; font-size: .92rem; }
 th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
 td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
