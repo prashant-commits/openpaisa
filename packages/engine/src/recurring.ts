@@ -127,6 +127,14 @@ function mergeSequential(bands: Transaction[][]): Transaction[][] | undefined {
       // A single trailing charge counts as a price step only when it is a plausible one.
       const r = (next[0] as Transaction).amount / (cur[cur.length - 1] as Transaction).amount;
       if (r > 1.6 || r < 1 / 1.6) return undefined;
+      // ...and only when it arrives on the cadence of the earlier bands.
+      const earlier = sorted.slice(0, i + 1).flat();
+      const gaps: number[] = [];
+      for (let k = 1; k < earlier.length; k++) gaps.push(diffDays((earlier[k - 1] as Transaction).date, (earlier[k] as Transaction).date));
+      const f = gaps.length ? FREQUENCIES.find((x) => median(gaps) >= x.min && median(gaps) <= x.max) : undefined;
+      if (!f) return undefined;
+      const gap = diffDays((cur[cur.length - 1] as Transaction).date, (next[0] as Transaction).date);
+      if (gap < f.min || gap > f.max) return undefined;
     }
     if (compareIso((cur[cur.length - 1] as Transaction).date, (next[0] as Transaction).date) >= 0) return undefined;
   }
