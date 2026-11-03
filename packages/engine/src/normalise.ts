@@ -58,6 +58,12 @@ function cleanCardMerchant(d: string): string | undefined {
   return name ? titleCase(name) : undefined;
 }
 
+/** Bank-fee phrasing. A bare FEE/CHARGES word is not enough: school, gym and membership fees are not bank fees. */
+const BANK_FEE =
+  /SMS CHARGE|LATE FEE|LATE PAYMENT|FINANCE CHARGE|MARKUP|CROSS CURRENCY|\b(?:IGST|CGST|SGST|GST)\b|MIN(?:IMUM)? BAL|NON MAINT|BOUNCE|RETURN CHG|ATM.*\b(?:FEE|CHG|CHARGES)\b|DEBIT CARD (?:ANNUAL FEE|AMC)|PENALTY/i;
+/** Phrasing that is a bank fee only on a card account. */
+const CARD_FEE = /ANNUAL FEE|JOINING FEE|RENEWAL FEE|\bAMC\s*(?:CHG|CHGS|CHARGES?|FEE)\b/i;
+
 function analyseRaw(raw: string, direction: Direction, isCard: boolean): Hit {
   const d = raw.replace(/\s+/g, ' ').trim();
 
@@ -81,7 +87,10 @@ function analyseRaw(raw: string, direction: Direction, isCard: boolean): Hit {
   if (/^(?:ATM|NFS|CASH WDL|CASH WITHDRAWAL)\b/i.test(d)) return { channel: 'atm', merchant: 'ATM' };
   if (/^(?:CHQ|CHEQUE|CLG|INW CLG)\b/i.test(d)) return { channel: 'cheque' };
   if (/INT\.?\s*PD|^INTEREST\b|^CREDIT INTEREST/i.test(d)) return { channel: 'interest', merchant: 'Interest' };
-  if (direction === 'debit' && /\b(?:CHARGES|FEE|PENALTY|IGST|CGST|SGST|GST|MARKUP)\b/i.test(d)) return { channel: 'fee', merchant: 'Bank charges' };
+  const dict = matchMerchant(d);
+  if (direction === 'debit' && (!dict || dict.name === 'Bank charges') && (BANK_FEE.test(d) || (isCard && CARD_FEE.test(d)))) {
+    return { channel: 'fee', merchant: 'Bank charges' };
+  }
   if (/CREDIT CARD|CC PAYMENT|CARD PAYMENT|PAYMENT RECEIVED|THANK YOU/i.test(d)) return { merchant: 'Card payment' };
 
   const hit: Hit = {};
