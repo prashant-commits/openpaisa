@@ -25,6 +25,7 @@ export async function ingestFilesWith(
   for (const file of files) {
     try {
       let text: string;
+      let skipped = false;
       if (isPdf(file)) {
         const bytes = await deps.readBytes(file);
         let password: string | undefined;
@@ -39,13 +40,14 @@ export async function ingestFilesWith(
             if (answer === null) {
               errors.push({ file: file.name, message: 'Password not provided, file skipped.' });
               text = '';
+              skipped = true;
               break;
             }
             password = answer;
             retry = true;
           }
         }
-        if (text === '') continue;
+        if (skipped) continue;
       } else {
         text = await deps.readText(file);
       }

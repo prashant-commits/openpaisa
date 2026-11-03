@@ -60,4 +60,12 @@ describe('ingestFilesWith', () => {
     expect(r.statements).toHaveLength(1);
     expect(r.errors).toHaveLength(1);
   });
+  it('reports an image-only PDF (empty text) as an unsupported-format error', async () => {
+    const d = deps({ extractPdf: async () => '' });
+    const r = await ingestFilesWith(d, [file('scan.pdf', 'application/pdf')], async () => null);
+    expect(r.statements).toHaveLength(0);
+    expect(r.errors).toHaveLength(1);
+    expect(r.errors[0]!.file).toBe('scan.pdf');
+    expect(r.errors[0]!.message).toMatch(/Unsupported statement format/);
+  });
 });
