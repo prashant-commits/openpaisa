@@ -43,6 +43,16 @@ describe('spendByCategory', () => {
     for (let i = 1; i < rows.length; i++) expect(rows[i - 1]!.amount).toBeGreaterThanOrEqual(rows[i]!.amount);
     expect(rows.find((x) => x.category === 'card_payment')).toBeUndefined();
   });
+  it('leaves out transfers and investments like the engine flows (FINAL-r1-07)', () => {
+    const base = r.transactions[0]!;
+    const extra = (id: string, category: 'transfers' | 'investments') => ({
+      ...base, id, date: '2026-10-12', direction: 'debit' as const, amount: 1_000_000, category, merchant: id,
+    });
+    const rep = { ...r, transactions: [...r.transactions, extra('x1', 'transfers'), extra('x2', 'investments')] };
+    const rows = spendByCategory(rep, '2026-10-01');
+    expect(rows.find((x) => x.category === 'transfers' || x.category === 'investments')).toBeUndefined();
+    expect(rows).toEqual(spendByCategory(r, '2026-10-01'));
+  });
   it('has no average for the first cycle', () => {
     expect(spendByCategory(r, '2026-05-01')[0]!.avg3).toBe(0);
   });

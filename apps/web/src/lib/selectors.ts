@@ -1,7 +1,7 @@
 import type { Account, AuditReport, CardSummary, Category, IsoDate, Paise, Transaction } from '@openpaisa/engine';
 
-/** Card payments are money moving between your own accounts, not spending. */
-const NOT_SPEND: Category[] = ['card_payment'];
+/** Money moving between your own accounts or into investments is not spending. Mirrors NOT_SPEND in packages/engine/src/flows.ts. */
+const NOT_SPEND: Category[] = ['transfers', 'card_payment', 'investments'];
 
 function addMonthsKey(date: IsoDate): IsoDate {
   const [y, m] = date.split('-').map(Number) as [number, number];

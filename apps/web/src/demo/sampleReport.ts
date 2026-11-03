@@ -84,7 +84,8 @@ add('interest', CARD, '2026-09-29', 84_250, 'debit', 'FINANCE CHARGES', 'ICICI B
 
 transactions.sort((a, b) => (a.date === b.date ? a.id.localeCompare(b.id) : a.date.localeCompare(b.date)));
 
-const SKIP_SPEND: Category[] = ['card_payment'];
+// Mirrors NOT_SPEND in packages/engine/src/flows.ts.
+const SKIP_SPEND: Category[] = ['transfers', 'card_payment', 'investments'];
 
 function buildFlows(): MonthlyFlow[] {
   const flows: MonthlyFlow[] = [];
