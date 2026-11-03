@@ -77,7 +77,7 @@ for (let m = 0; m < 6; m++) {
 
 // One-off charges that feed the insights.
 add('forex_base', CARD, '2026-08-20', 1_200_000, 'debit', 'AMAZON.COM SEATTLE USD 142.00', 'Amazon.com', 'card', 'shopping');
-add('forex', CARD, '2026-08-20', 42_000, 'debit', 'FOREX MARKUP FEE 3.5% + GST', 'Forex markup', 'fee', 'fees_charges');
+add('forex', CARD, '2026-08-20', 42_000, 'debit', 'FOREX MARKUP FEE 3.5%', 'Forex markup', 'fee', 'fees_charges');
 add('fee', SAV, '2026-06-15', 59_000, 'debit', 'DEBIT CARD ANNUAL FEE INCL GST', 'HDFC Bank', 'fee', 'fees_charges');
 add('late', CARD, '2026-09-28', 118_000, 'debit', 'LATE PAYMENT FEE INCL GST', 'ICICI Bank', 'fee', 'fees_charges');
 add('interest', CARD, '2026-09-29', 84_250, 'debit', 'FINANCE CHARGES', 'ICICI Bank', 'interest', 'interest');
@@ -194,9 +194,9 @@ const insights: Insight[] = [
     action: { label: 'Dispute the second charge', kind: 'call_bank' },
   },
   {
-    id: 'ins-forex', kind: 'forex_markup', severity: 'info',
+    id: 'ins-forex', kind: 'forex_markup', severity: 'warn',
     title: 'You paid ₹420 in forex markup on 2026-08-20',
-    detail: 'A USD 142.00 purchase carried a 3.5% markup plus GST on the converted amount.',
+    detail: 'A USD 142.00 purchase (₹12,000 after conversion) carried a 3.5% markup: ₹420.',
     annualImpact: 42_000, transactionIds: ids('forex_base', 'forex'),
     action: { label: 'Review card terms', kind: 'review' },
   },
