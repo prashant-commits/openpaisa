@@ -158,6 +158,27 @@ describe('dedupeTransactions', () => {
       ]);
       expect(out.map((t) => t.category)).toEqual(['transfers', 'transfers']);
     });
+    it('does not pair unrelated same-amount rows on different accounts (A-r2-03)', () => {
+      const credit = tx({ accountId: 'hdfc-sav-1234', date: '2026-10-03', amount: 5000000, direction: 'credit', rawDescription: 'IMPS/P2A/412345678901/RAHUL SHARMA', channel: 'imps' });
+      const rent = tx({ accountId: 'icici-sav-5678', date: '2026-10-04', amount: 5000000, direction: 'debit', rawDescription: 'NEFT DR-ICIC0000001-GREEN HOMES LLP-RENT', channel: 'neft', category: 'rent' });
+      const out = dedupeTransactions([credit, rent]);
+      expect(out.map((t) => t.category)).toEqual([undefined, 'rent']);
+      expect(dedupeTransactions([neftOut({ rawDescription: 'NEFT DR-ICIC0000001-ARJUN' }), neftIn()]).every((t) => !t.category)).toBe(true);
+    });
+    it('pairs a SELF debit with a next-day credit on another account', () => {
+      const out = dedupeTransactions([neftOut({ rawDescription: 'NEFT DR-HDFC0000001-ARJUN MEHTA-SELF' }), neftIn({ rawDescription: 'NEFT CR-HDFC0000001-ARJUN MEHTA' })]);
+      expect(out.map((t) => t.category)).toEqual(['transfers', 'transfers']);
+    });
+    it("pairs when the debit names the other account's last four", () => {
+      const out = dedupeTransactions([neftOut({ rawDescription: 'NEFT DR-ICIC0000001-XXXXXX5678' }), neftIn()]);
+      expect(out.map((t) => t.category)).toEqual(['transfers', 'transfers']);
+    });
+    it('never re-labels a salary credit or a rent debit, even with a signal', () => {
+      const salary = neftIn({ rawDescription: 'NEFT CR-HDFC0000001-ACME-SALARY OCT', category: 'salary' });
+      expect(dedupeTransactions([neftOut(), salary]).map((t) => t.category)).toEqual([undefined, 'salary']);
+      const rent = neftOut({ rawDescription: 'NEFT DR-ICIC0000001-XXXXXX5678-RENT', category: 'rent' });
+      expect(dedupeTransactions([rent, neftIn()]).map((t) => t.category)).toEqual(['rent', undefined]);
+    });
     it('never re-marks card_payment rows', () => {
       const debit = tx({ rawDescription: 'CREDIT CARD PAYMENT NEFT', channel: 'neft', amount: 1120000 });
       const cardCredit = tx({ accountId: 'axis-cc-2468', direction: 'credit', rawDescription: 'PAYMENT RECEIVED', amount: 1120000, date: '2026-10-06' });

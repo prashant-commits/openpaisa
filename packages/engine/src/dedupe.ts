@@ -8,8 +8,22 @@ const SOURCE_RANK: Record<Source, number> = {
 const CARD_BILL = /CREDIT\s*CARD|CC\s*PAYMENT|CARD\s*(?:PAYMENT|BILL)|BILLDESK|AUTOPAY|\bCRED\b|DREAMPLUG|CRED\.CLUB@/i;
 const CARD_RECEIPT = /PAYMENT|THANK\s*YOU|RECEIVED/i;
 const MOVE_CHANNEL = new Set(['upi', 'imps', 'neft', 'rtgs']);
-const SELF_NARRATION = /\bSELF\b|OWN\s*ACCOUNT|TRANSFER\s*TO\s*SELF/i;
+const SELF_NARRATION = /\bSELF\b|OWN\s*ACCOUNT|OWN\s*A\/C|TRANSFER\s*TO\s*SELF/i;
+const SALARY_NARRATION = /\bSALARY\b|\bSAL CR\b/i;
+const RENT_NARRATION = /\bRENT\b/i;
 const NOT_A_PAYMENT = /REFUND|REVERSAL|CASHBACK/i;
+
+/** Last four digits of an account id such as 'icici-sav-5678'. */
+const accountLast4 = (t: Transaction): string | undefined => /-(\d{4})$/.exec(t.accountId)?.[1];
+/** The narration carries a masked number ending in the other account's last four, e.g. XXXXXX5678. */
+const namesAccount = (narration: string, other: Transaction): boolean => {
+  const l4 = accountLast4(other);
+  return Boolean(l4) && new RegExp(`[X*]{2,}\\d*${l4}(?!\\d)`, 'i').test(narration);
+};
+/** An own-account move must say so: SELF / OWN ACCOUNT, or the other account's masked last four. */
+const ownAccountSignal = (debit: Transaction, credit: Transaction): boolean =>
+  SELF_NARRATION.test(debit.rawDescription) || SELF_NARRATION.test(credit.rawDescription) ||
+  namesAccount(debit.rawDescription, credit) || namesAccount(credit.rawDescription, debit);
 
 const isCard = (t: Transaction): boolean => t.accountId.includes('-cc-');
 
@@ -33,7 +47,9 @@ function sameCrossSource(a: Transaction, b: Transaction): boolean {
  *   different sources: keep the best source (statement_pdf > statement_csv > email > sms > notification > manual)
  * - a savings-side card-bill debit and the card's payment credit of the same amount: keep both, mark card_payment
  * - a debit on one non-card account and a same-amount credit on a different non-card account within 2 days,
- *   both on upi/imps/neft/rtgs or with a SELF / OWN ACCOUNT narration: an own-account move, both marked transfers
+ *   both on upi/imps/neft/rtgs or with a SELF / OWN ACCOUNT narration, and at least one narration saying it is
+ *   an own-account move (SELF, OWN ACCOUNT, or the other account's masked last four): both marked transfers.
+ *   A salary credit or a RENT debit is never re-labelled.
  * Output is ordered by date, then by original order.
  */
 export function dedupeTransactions(txns: Transaction[]): Transaction[] {
@@ -89,6 +105,7 @@ export function dedupeTransactions(txns: Transaction[]): Transaction[] {
     let bestGap = Infinity;
     rows.forEach((credit, ci) => {
       if (moved.has(ci) || credit.direction !== 'credit' || credit.amount !== debit.amount || credit.accountId === debit.accountId || !movable(credit)) return;
+      if (!ownAccountSignal(debit, credit) || SALARY_NARRATION.test(credit.rawDescription) || RENT_NARRATION.test(debit.rawDescription)) return;
       const gap = Math.abs(dayNumber(credit.date) - dayNumber(debit.date));
       if (gap <= 2 && gap < bestGap) { best = ci; bestGap = gap; }
     });
