@@ -22,6 +22,18 @@ describe('detectSalaryDay', () => {
   });
 });
 
+describe('detectSalaryDay without a SALARY keyword (FINAL-r1-04)', () => {
+  const pay = (d: string, merchant = 'Infosys Limited', amount = 120000) =>
+    txn({ date: d, amount, direction: 'credit', category: 'other', merchant, channel: 'neft', rawDescription: `NEFT CR-ICIC0000104-${merchant}-N2456` });
+  it('falls back to the largest same-payee credit series', () => {
+    expect(detectSalaryDay([pay('2026-08-01'), pay('2026-09-01'), pay('2026-10-02'), pay('2026-08-15', 'Small Co Ltd', 3000), pay('2026-09-20', 'Small Co Ltd', 3000)])).toBe(1);
+  });
+  it('ignores a series with wildly different amounts or a single month', () => {
+    expect(detectSalaryDay([pay('2026-08-01', 'X Ltd', 1000), pay('2026-09-01', 'X Ltd', 5000)])).toBeUndefined();
+    expect(detectSalaryDay([pay('2026-10-01')])).toBeUndefined();
+  });
+});
+
 describe('buildFlows', () => {
   it('uses calendar months without a salary day', () => {
     const flows = buildFlows([
@@ -126,6 +138,18 @@ describe('safeToSpend', () => {
     expect(nextSalaryDate('2026-11-03', 25)).toBe('2026-11-25');
     expect(nextSalaryDate('2026-01-31', 31)).toBe('2026-02-28');
     expect(nextSalaryDate('2026-11-25', 25)).toBe('2026-12-25');
+  });
+});
+
+describe('buildUpcoming month-end billers (B-r3-02)', () => {
+  it('keeps the 31st after a short month', () => {
+    const gym = [txn({ date: '2025-11-30', amount: 1500, merchant: 'Iron Gym', category: 'health' }), txn({ date: '2025-12-31', amount: 1500, merchant: 'Iron Gym', category: 'health' }), txn({ date: '2026-01-31', amount: 1500, merchant: 'Iron Gym', category: 'health' })];
+    const recurring = detectRecurring(gym, '2026-02-02');
+    expect(recurring[0]?.nextExpectedDate).toBe('2026-02-28');
+    const up = buildUpcoming(recurring, [], [], '2026-02-02').filter((u) => u.label === 'Iron Gym').map((u) => u.date);
+    expect(up).toEqual(['2026-02-28']);
+    const later = buildUpcoming(recurring, [], [], '2026-02-20').filter((u) => u.label === 'Iron Gym').map((u) => u.date);
+    expect(later).toEqual(['2026-02-28', '2026-03-31']);
   });
 });
 

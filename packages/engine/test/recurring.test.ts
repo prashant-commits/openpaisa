@@ -168,6 +168,26 @@ describe('detectRecurring', () => {
     expect(r[0]).toMatchObject({ typicalAmount: 64900, lastDate: '2026-10-05', nextExpectedDate: '2026-11-05', priceChange: { from: 49900, to: 64900, on: '2026-10-05' } });
   });
 
+  it('B-r3-01: an off-cycle single charge is not merged as a price step', () => {
+    const t = [...monthly('Netflix', 649, '2026-05-05', 6, { category: 'subscriptions' }), txn({ date: '2026-10-20', amount: 999, merchant: 'Netflix', category: 'subscriptions' })];
+    const r = detectRecurring(t, ASOF);
+    expect(r).toHaveLength(1);
+    expect(r[0]?.priceChange).toBeUndefined();
+    expect(r[0]).toMatchObject({ typicalAmount: 64900, nextExpectedDate: '2026-11-05' });
+  });
+
+  it('B-r3-01: a one-off purchase does not drop a yearly series', () => {
+    const t = [
+      txn({ date: '2025-03-10', amount: 1499, merchant: 'Amazon Prime', category: 'subscriptions' }),
+      txn({ date: '2026-03-10', amount: 1499, merchant: 'Amazon Prime', category: 'subscriptions' }),
+      txn({ date: '2026-07-02', amount: 1299, merchant: 'Amazon Prime', category: 'subscriptions' }),
+    ];
+    const r = detectRecurring(t, ASOF);
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ frequency: 'yearly', typicalAmount: 149900 });
+    expect(r[0]?.priceChange).toBeUndefined();
+  });
+
   it('B-r2-02: staleness is measured against the end of the data, not asOf', () => {
     const old = monthly('Netflix', 649, '2026-05-05', 4, { category: 'subscriptions' });
     expect(detectRecurring(old, ASOF)).toHaveLength(1);

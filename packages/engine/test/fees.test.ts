@@ -21,7 +21,9 @@ describe('detectFees', () => {
       ['MIN BAL PENALTY', 'fee_paid'],
       ['NON MAINT OF AMB', 'fee_paid'],
       ['ATM WDL FEE', 'fee_paid'],
-      ['AMC DEBIT CARD', 'fee_paid'],
+      ['DEBIT CARD AMC CHGS', 'fee_paid'],
+      ['ANNUAL MAINTENANCE CHARGES', 'fee_paid'],
+      ['FOREX CONV FEE', 'forex_markup'],
     ];
     for (const [desc, kind] of cases) {
       const out = detectFees([anchor, txn({ date: '2026-10-01', amount: 100, rawDescription: desc })], ASOF);
@@ -73,5 +75,29 @@ describe('detectFees', () => {
     expect(detectFees([anchor], ASOF)).toEqual([]);
     expect(detectFees([], ASOF)).toEqual([]);
     expect(detectFees([txn({ date: '2026-10-01', amount: 100, direction: 'credit', rawDescription: 'LATE FEE REVERSAL' })], ASOF)).toEqual([]);
+  });
+
+  it('does not treat SIPs to an AMC as fees (FINAL-r1-01)', () => {
+    for (const category of ['investments', undefined] as const) {
+      const sips = [5, 6, 7, 8, 9, 10].map((m) =>
+        txn({ date: `2026-${String(m).padStart(2, '0')}-05`, amount: 10000, rawDescription: 'ACH D- HDFC AMC LTD-SIP 1234', category }),
+      );
+      const out = detectFees([anchor, ...sips], '2026-11-03');
+      expect(out, String(category)).toEqual([]);
+    }
+    for (const name of ['KOTAK MAHINDRA AMC', 'UTI AMC', 'NIPPON LIFE INDIA AMC', 'AXIS AMC']) {
+      expect(detectFees([txn({ date: '2026-10-05', amount: 5000, rawDescription: `ACH D- ${name} SIP` })], ASOF)).toEqual([]);
+    }
+  });
+
+  it('skips rows whose category cannot be a fee', () => {
+    const t = txn({ date: '2026-10-05', amount: 5000, rawDescription: 'SMS CHARGES', category: 'emi' });
+    expect(detectFees([t], ASOF)).toEqual([]);
+  });
+
+  it('ignores forex purchases and card reloads (FINAL-r1-06)', () => {
+    for (const d of ['BOOKMYFOREX CARD RELOAD', 'THOMAS COOK FOREX']) {
+      expect(detectFees([txn({ date: '2026-10-05', amount: 50000, rawDescription: d })], ASOF), d).toEqual([]);
+    }
   });
 });

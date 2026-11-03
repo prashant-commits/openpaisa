@@ -27,7 +27,15 @@ export interface CardConfig {
 }
 
 const KIND = [/Credit Card/i, /Total (?:Amount|Payment) Due/i, /Min(?:imum)? (?:Amount|Payment) Due/i, /Payment Due Date/i, /Credit Limit/i];
-const SAVINGS_MARKERS = [/Withdrawal/i, /Deposit Amount/i, /Narration/i, /Particulars/i, /Opening Balance/i, /Closing Balance/i];
+/**
+ * Savings-table column-header phrasing that a card statement never prints. Bare words such as
+ * "Opening Balance", "Closing Balance" or "Withdrawal" also occur in card account summaries and
+ * fee schedules, so they must not veto a card.
+ */
+const SAVINGS_MARKERS = [
+  /Withdrawal\s*Amt/i, /Withdrawal\s*Amount/i, /Withdrawal\s*\(Dr\)/i, /Deposit\s*Amt/i, /Deposit\s*Amount/i,
+  /Chq\.?\s*\/?\s*Ref/i, /Cheque Number/i, /Value Dt/i, /\bDebit\s+Credit\s+Balance\b/i,
+];
 
 export function makeCardParser(cfg: CardConfig): StatementParser {
   const detect = makeDetect({ identity: cfg.identity, kind: [...KIND, ...(cfg.kindMarkers ?? [])], anti: SAVINGS_MARKERS });

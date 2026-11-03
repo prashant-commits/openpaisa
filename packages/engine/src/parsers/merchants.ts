@@ -151,6 +151,7 @@ const RAW: [string, Category, string][] = [
   ['BMTC', 'travel', 'BMTC'],
   ['State Bus', 'travel', 'KSRTC|MSRTC|TSRTC|APSRTC'],
   // fuel
+  ['Indane Gas', 'utilities', 'INDANE|INDIAN OIL GAS'],
   ['Indian Oil', 'fuel', 'INDIAN OIL|INDIANOIL|IOCL'],
   ['HPCL', 'fuel', 'HPCL|HP PETROL|HINDUSTAN PETROLEUM|HP PAY'],
   ['BPCL', 'fuel', 'BPCL|BHARAT PETROLEUM|BP PETROL'],
@@ -173,7 +174,6 @@ const RAW: [string, Category, string][] = [
   ['Adani Gas', 'utilities', 'ADANI TOTAL GAS|ADANI GAS'],
   ['BWSSB', 'utilities', 'BWSSB'],
   ['Delhi Jal Board', 'utilities', 'DELHI JAL BOARD|DJB'],
-  ['Indane Gas', 'utilities', 'INDANE|INDIAN OIL GAS'],
   ['Bharat Gas', 'utilities', 'BHARAT GAS'],
   ['HP Gas', 'utilities', 'HP GAS'],
   ['MyGate', 'utilities', 'MYGATE|NOBROKERHOOD'],

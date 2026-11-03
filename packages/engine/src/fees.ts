@@ -8,9 +8,13 @@ type FeeKind = Extract<InsightKind, 'late_fee' | 'card_interest' | 'forex_markup
 const PATTERNS: { kind: FeeKind; re: RegExp; cardOnly?: boolean }[] = [
   { kind: 'late_fee', re: /LATE PAYMENT|LATE FEE/i },
   { kind: 'card_interest', re: /FINANCE CHARGE|INTEREST CHARGED/i, cardOnly: true },
-  { kind: 'forex_markup', re: /MARKUP|CROSS CURRENCY|FOREX|\bDCC\b/i },
-  { kind: 'fee_paid', re: /ANNUAL FEE|JOINING FEE|\bAMC\b|SMS CHARGE|BOUNCE|RETURN CHG|MIN BAL|NON MAINT|ATM.*(FEE|CHG)/i },
+  { kind: 'forex_markup', re: /MARKUP|CROSS CURRENCY|\bDCC\b|FOREX.*(?:MARKUP|FEE|CHG|CHARGE|CONV)/i },
+  { kind: 'fee_paid', re: /ANNUAL FEE|JOINING FEE|ANNUAL MAINTENANCE|\bAMC\s*(?:CHG|CHGS|CHARGES?|FEE)\b|SMS CHARGE|BOUNCE|RETURN CHG|MIN BAL|NON MAINT|ATM.*(FEE|CHG)/i },
 ];
+/** Categories that cannot be a bank or card fee (a SIP to an AMC, an EMI, rent...). */
+const NOT_FEE: ReadonlySet<string> = new Set([
+  'investments', 'emi', 'insurance', 'rent', 'salary', 'transfers', 'card_payment', 'cash_withdrawal', 'refund',
+]);
 const GST = /\b(GST|IGST|CGST|SGST)\b/i;
 
 const COPY: Record<FeeKind, { noun: string; severity: Insight['severity']; action?: Insight['action'] }> = {
@@ -27,7 +31,7 @@ const ORDER: FeeKind[] = ['late_fee', 'card_interest', 'forex_markup', 'fee_paid
  * interest to those accounts (the transaction itself does not carry account kind).
  */
 export function detectFees(txns: Transaction[], asOf: IsoDate, cardAccountIds?: ReadonlySet<string>): Insight[] {
-  const debits = txns.filter((t) => t.direction === 'debit');
+  const debits = txns.filter((t) => t.direction === 'debit' && !(t.category && NOT_FEE.has(t.category)));
   const text = (t: Transaction) => `${t.rawDescription} ${t.merchant ?? ''}`;
 
   const byKind = new Map<FeeKind, Transaction[]>();

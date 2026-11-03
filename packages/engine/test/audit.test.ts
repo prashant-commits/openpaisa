@@ -149,3 +149,14 @@ describe('runAudit: input handling', () => {
     expect(runAudit(withDay).safeToSpend?.untilDate).toBe('2026-11-25');
   });
 });
+
+describe('FINAL-r1-04 payroll without the word SALARY', () => {
+  it('counts the credit as income, finds the salary day and a safe-to-spend', () => {
+    const t = [5, 6, 7, 8, 9, 10].map((m) =>
+      txn({ date: `2026-${String(m).padStart(2, '0')}-01`, amount: 120000, direction: 'credit', channel: 'neft', rawDescription: `NEFT CR-ICIC0000104-INFOSYS LIMITED-ARJUN MEHTA-N24${m}` }),
+    );
+    const r = runAudit({ statements: [statement({}, t, { closingBalance: 25000000, periodEnd: '2026-10-31' })], asOf: '2026-11-03' });
+    expect(r.flows.every((f) => f.income === 12000000)).toBe(true);
+    expect(r.safeToSpend).toBeDefined();
+  });
+});

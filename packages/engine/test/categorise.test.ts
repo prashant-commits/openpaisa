@@ -61,6 +61,18 @@ describe('categorise: dictionary spot checks', () => {
   });
 });
 
+describe('categorise: organisation credits (FINAL-r1-04)', () => {
+  it('counts an unrecognised company NEFT credit as other, not a transfer', () => {
+    expect(cat('NEFT CR-ICIC0000104-INFOSYS LIMITED-ARJUN MEHTA-N2456', 'credit')).toBe('other');
+    expect(cat('RTGS CR-HDFC0000001-GLOBEX SOLUTIONS LLP-PAYOUT', 'credit')).toBe('other');
+  });
+  it('keeps explicit P2A and person-looking credits as transfers', () => {
+    expect(cat('IMPS/P2A/412345678904/MOM', 'credit')).toBe('transfers');
+    expect(cat('UPI/CR/412345678903/RAHUL SHARMA/SBIN/rahul@okaxis', 'credit')).toBe('transfers');
+    expect(cat('NEFT CR-SBIN0000001-RAHUL SHARMA-N1', 'credit')).toBe('transfers');
+  });
+});
+
 describe('categorise: keyword rules', () => {
   it('salary on a credit', () => expect(cat('NEFT CR-ACME TECH PVT LTD-SALARY OCT', 'credit')).toBe('salary'));
   it('interest credit', () => expect(cat('INT.PD:01-07-2026 TO 30-09-2026', 'credit')).toBe('interest'));

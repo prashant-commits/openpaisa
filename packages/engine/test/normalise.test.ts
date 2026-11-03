@@ -75,9 +75,28 @@ describe('normaliseTransactions', () => {
     expect(normaliseTransactions([mk('REVERSAL OF SMS CHARGES', 'credit')])[0]!.channel).not.toBe('fee');
   });
 
+  it('does not label school, membership or club fees as bank charges (FINAL-r1-03)', () => {
+    const school = normaliseTransactions([mk('UPI-DPS INTERNATIONAL SCHOOL-dps@sbi-SBIN0000001-412345678905-SCHOOL FEE')])[0]!;
+    expect(school.merchant).not.toBe('Bank charges');
+    expect(school.channel).not.toBe('fee');
+    expect(normaliseTransactions([mk('AMAZON PRIME MEMBERSHIP FEE', 'debit', 'hdfc-cc-4321')])[0]).toMatchObject({ merchant: 'Amazon Prime' });
+    expect(normaliseTransactions([mk('AMAZON PRIME MEMBERSHIP FEE')])[0]).toMatchObject({ merchant: 'Amazon Prime' });
+    expect(normaliseTransactions([mk('GYM MEMBERSHIP FEE')])[0]!.merchant).not.toBe('Bank charges');
+    expect(normaliseTransactions([mk('IGST ON LATE FEE')])[0]).toMatchObject({ merchant: 'Bank charges', channel: 'fee' });
+    expect(normaliseTransactions([mk('ANNUAL FEE', 'debit', 'hdfc-cc-4321')])[0]).toMatchObject({ merchant: 'Bank charges', channel: 'fee' });
+    expect(normaliseTransactions([mk('DEBIT CARD ANNUAL FEE')])[0]).toMatchObject({ merchant: 'Bank charges', channel: 'fee' });
+  });
+
   it('recognises cheques and RTGS', () => {
     expect(normaliseTransactions([mk('CHQ PAID 000123 TO LANDLORD')])[0]!.channel).toBe('cheque');
     expect(normaliseTransactions([mk('RTGS DR-HDFC0000001-GREEN HOMES LLP-RENT')])[0]).toMatchObject({ channel: 'rtgs', merchant: 'Green Homes Llp' });
+  });
+});
+
+describe('matchMerchant: LPG vs fuel (A-r3-02)', () => {
+  it('puts an Indian Oil gas payment under utilities and petrol under fuel', () => {
+    expect(matchMerchant('UPI/DR/412345678901/INDIAN OIL GAS/sbin/indane@sbi')).toMatchObject({ name: 'Indane Gas', category: 'utilities' });
+    expect(matchMerchant('POS INDIAN OIL PETROL PUMP')).toMatchObject({ name: 'Indian Oil', category: 'fuel' });
   });
 });
 

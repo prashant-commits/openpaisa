@@ -42,6 +42,21 @@ describe('extractAmounts', () => {
   });
 });
 
+describe('findAmounts: glued Dr/Cr markers (A-r3-01)', () => {
+  it('reads a marker with no space before it', () => {
+    expect(findAmounts('11,200.00Cr')[0]).toMatchObject({ value: 1120000, marker: 'Cr' });
+    expect(findAmounts('450.00Dr')[0]).toMatchObject({ value: 45000, marker: 'Dr' });
+    expect(findAmounts('450.00 Dr')[0]).toMatchObject({ marker: 'Dr' });
+  });
+  it('does not read a marker that starts a longer word', () => {
+    expect(findAmounts('450.00Credit')[0]!.marker).toBeUndefined();
+    expect(findAmounts('450.00 Drawn', { letterMarkers: true })[0]!.marker).toBeUndefined();
+  });
+  it('reads a glued letter marker on cards', () => {
+    expect(findAmounts('11,200.00C', { letterMarkers: true })[0]).toMatchObject({ marker: 'Cr' });
+  });
+});
+
 describe('findAmounts: Rs. prefixes and minus signs (A-r1-05)', () => {
   it('reads an amount glued to Rs., Rs, INR or the rupee sign', () => {
     expect(findAmounts('Total Amount Due : Rs.11,728.53').map((a) => a.value)).toEqual([1172853]);
