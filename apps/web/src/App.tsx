@@ -46,6 +46,8 @@ export function App() {
     } finally { setBusy(false); }
   };
 
+  /** Show a report that did not come from this run: drop stale per-file errors and the engine notice. */
+  const showReport = (r: AuditReport) => { setErrors([]); setNotice(null); setReport(r); };
   const reset = () => { setReport(null); setFiles([]); setErrors([]); setNotice(null); };
 
   const problems = (
@@ -69,7 +71,7 @@ export function App() {
       <main className="wrap">
         {!report && (
           <>
-            <Upload files={files} busy={busy} onFiles={setFiles} onRun={run} onSample={() => { setErrors([]); setNotice(null); setReport(sampleReport); }} />
+            <Upload files={files} busy={busy} onFiles={setFiles} onRun={run} onSample={() => showReport(sampleReport)} />
             {busy && <p role="status" className="card">Reading your statements on this device…</p>}
             {problems}
           </>
@@ -84,10 +86,10 @@ export function App() {
               <ul className="insights">{report.insights.map((i) => <InsightCard key={i.id} insight={i} />)}</ul>
             </section>
             <MoneyView key={reportKey} report={report} />
-            <ExportImport report={report} onImport={setReport} />
+            <ExportImport report={report} onImport={showReport} />
           </>
         )}
-        {!report && <ExportImport report={null} onImport={setReport} />}
+        {!report && <ExportImport report={null} onImport={showReport} />}
       </main>
       {prompt && <PasswordDialog fileName={prompt.fileName} retry={prompt.retry} onSubmit={answer} />}
     </>
