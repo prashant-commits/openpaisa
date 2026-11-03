@@ -56,5 +56,8 @@ export async function extractPdfText(data: ArrayBuffer, password?: string): Prom
       throw err.code === 2 ? new PasswordWrong() : new PasswordNeeded();
     }
     throw e;
+  } finally {
+    // Free the worker on every exit path, including a rejected task.promise.
+    await task.destroy().catch(() => undefined);
   }
 }
