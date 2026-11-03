@@ -1,0 +1,24 @@
+{
+  "name": "openpaisa",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Open-source, on-device money audit for India: subscriptions, EMIs, loans, card dues and hidden fees from your own statements. Nothing leaves your device.",
+  "license": "AGPL-3.0-only",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @openpaisa/engine && npm run build -w @openpaisa/web",
+    "test": "npm run test -w @openpaisa/engine",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "check:no-network": "node scripts/check-no-network.mjs",
+    "dev": "npm run dev -w @openpaisa/web"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

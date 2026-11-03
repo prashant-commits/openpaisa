@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+.DS_Store
+*.local
+# never commit real statements
+**/private-fixtures/
+*.real.pdf
+.cadai/
