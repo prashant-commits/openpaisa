@@ -25,6 +25,13 @@ describe('HDFC Bank credit card parser', () => {
     }
   });
 
+  it('is not vetoed by savings words in an account summary or fee schedule (FINAL-r1-05)', () => {
+    const noisy = `${text}\nOpening Balance Rs. 11,200.00 Payment/Credits Rs. 11,699.00 Closing Balance Rs. 11,728.53\nCash Withdrawal fee 2.5%\n`;
+    expect(hdfcCard.detect(noisy)).toBeGreaterThan(0.8);
+    expect(hdfcCard.parse(noisy).card).toEqual(s.card);
+    expect(parseStatement(noisy).account.id).toBe('hdfc-cc-4321');
+  });
+
   it('reads the account and card summary', () => {
     expect(s.account).toMatchObject({ id: 'hdfc-cc-4321', institution: 'HDFC Bank', kind: 'credit_card', last4: '4321', creditLimit: 20000000 });
     expect(s.card).toEqual({ totalDue: 1172853, minimumDue: 58600, dueDate: '2026-11-20', statementDate: '2026-10-31' });
