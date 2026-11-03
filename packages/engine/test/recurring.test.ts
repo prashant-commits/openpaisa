@@ -160,4 +160,29 @@ describe('detectRecurring', () => {
     const t = [...monthly('Small', 100, '2026-05-05', 5), ...monthly('Big', 5000, '2026-05-06', 5)];
     expect(detectRecurring(t, ASOF).map((r) => r.merchant)).toEqual(['Big', 'Small']);
   });
+
+  it('B-r2-01: a single post-change charge at a plausible new price is a price change', () => {
+    const t = [...monthly('Netflix', 499, '2026-05-05', 5, { category: 'subscriptions' }), txn({ date: '2026-10-05', amount: 649, merchant: 'Netflix', category: 'subscriptions' })];
+    const r = detectRecurring(t, ASOF);
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ typicalAmount: 64900, lastDate: '2026-10-05', nextExpectedDate: '2026-11-05', priceChange: { from: 49900, to: 64900, on: '2026-10-05' } });
+  });
+
+  it('B-r2-02: staleness is measured against the end of the data, not asOf', () => {
+    const old = monthly('Netflix', 649, '2026-05-05', 4, { category: 'subscriptions' });
+    expect(detectRecurring(old, ASOF)).toHaveLength(1);
+    const lapsed = [...monthly('Netflix', 649, '2026-05-05', 3, { category: 'subscriptions' }), txn({ date: '2026-10-20', amount: 80, merchant: 'Cafe' })];
+    expect(detectRecurring(lapsed, ASOF)).toHaveLength(0);
+    const other = [...monthly('Netflix', 649, '2026-05-05', 3, { category: 'subscriptions' }), txn({ date: '2026-10-20', amount: 80, merchant: 'Cafe', accountId: 'other-acc' })];
+    expect(detectRecurring(other, ASOF)).toHaveLength(1);
+  });
+
+  it('B-int-05: card bills paid through CRED are excluded; CREDIT/CREDITED words are not', () => {
+    const cred = monthly('', 32000, '2026-07-05', 4, { category: 'other', merchant: undefined }).map((t) => ({ ...t, rawDescription: 'UPI-CRED CLUB-cred.club@axisb-UTIB0000100-412345678901-Payment' }));
+    expect(detectRecurring(cred, ASOF)).toHaveLength(0);
+    const credited = monthly('', 32000, '2026-07-05', 4, { category: 'other', merchant: undefined }).map((t) => ({ ...t, rawDescription: 'NEFT CR-ABCD0001234-GYM XYZ CREDITED' }));
+    expect(detectRecurring(credited, ASOF)).toHaveLength(1);
+    const upi = monthly('', 32000, '2026-07-05', 4, { category: 'other', merchant: undefined }).map((t) => ({ ...t, rawDescription: 'UPI/CR/412345/ACCREDITED GYM' }));
+    expect(detectRecurring(upi, ASOF)).toHaveLength(1);
+  });
 });

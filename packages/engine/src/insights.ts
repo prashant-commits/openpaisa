@@ -2,7 +2,7 @@ import { addDays, compareIso, diffDays } from './dates.js';
 import { buildUpcoming, latestCardStatements, liquidBalance } from './flows.js';
 import { amortise, prepay, rateResetCheck, solveRate } from './loans.js';
 import { formatINR } from './money.js';
-import { payeeKey, subscriptionGroup } from './recurring.js';
+import { CARD_BILL_PAYMENT, payeeKey, subscriptionGroup } from './recurring.js';
 import type { Category, Insight, IsoDate, Loan, Paise, ParsedStatement, RecurringPayment, Transaction } from './types.js';
 
 export interface InsightContext {
@@ -174,7 +174,7 @@ function transactionInsights(txns: Transaction[], recurring: RecurringPayment[])
     if (key && !firstSeen.has(key)) firstSeen.set(key, t);
   }
   for (const [key, t] of firstSeen) {
-    if (t.amount < UNKNOWN_DEBIT_MIN || (t.category && NOT_A_PAYEE.has(t.category)) || recurringIds.has(t.id) || recurringPayees.has(key.toLowerCase())) continue;
+    if (t.amount < UNKNOWN_DEBIT_MIN || (t.category && NOT_A_PAYEE.has(t.category)) || recurringIds.has(t.id) || CARD_BILL_PAYMENT.test(t.rawDescription) || recurringPayees.has(key.toLowerCase())) continue;
     const who = t.merchant ?? key;
     out.push({
       id: `unknown_debit-${t.id}`,

@@ -226,4 +226,11 @@ describe('integration regressions', () => {
     const b = monthly('Bajaj Finance', 18500, '2026-07-09', 4, { category: 'emi', accountId: 'icici-sav-5678' });
     expect(kinds(buildInsights(ctx([...a, ...b])))).not.toContain('forgotten_subscription');
   });
+
+  it('B-int-04: unmatched savings-side card bill payments are not unknown debits', () => {
+    const t = monthly('Card payment', 12000, '2026-07-05', 3, { category: 'other' }).map((x) => ({ ...x, rawDescription: 'CREDIT CARD PAYMENT-XXXXXX5678' }));
+    expect(kinds(buildInsights(ctx(t)))).not.toContain('unknown_debit');
+    const cred = monthly('Cred', 32000, '2026-07-05', 1, { category: 'other' }).map((x) => ({ ...x, rawDescription: 'UPI-CRED CLUB-cred.club@axisb-UTIB0000100-412345678901-Payment' }));
+    expect(kinds(buildInsights(ctx(cred)))).not.toContain('unknown_debit');
+  });
 });

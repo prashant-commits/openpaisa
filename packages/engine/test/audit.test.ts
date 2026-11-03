@@ -55,6 +55,18 @@ describe('runAudit: empty and thin input', () => {
   });
 });
 
+describe('B-r2-03 loan merge by EMI', () => {
+  it('merges a user loan with a detected loan of a different lender name', () => {
+    const t = monthly('HDFC Bank', 43391.16, '2026-06-05', 6, { channel: 'nach', category: 'emi', rawDescription: 'NACH HOME LOAN' });
+    const r = runAudit({ statements: [statement({}, t)], asOf: '2026-11-03', loans: [{ lender: 'HDFC Ltd', principal: 500000000, annualRatePct: 8.5, tenureMonths: 240, startDate: '2026-05-01', emi: 4339116 }] });
+    expect(r.loans).toHaveLength(1);
+    expect(r.loans[0]?.lender).toBe('HDFC Ltd');
+    expect(r.headline.emiMonthly).toBe(4339116);
+    const emis = r.upcoming.filter((u) => u.amount === 4339116);
+    expect(new Set(emis.map((u) => u.date)).size).toBe(emis.length);
+  });
+});
+
 describe('runAudit: six-month household', () => {
   const input = household();
   const r = runAudit(input);

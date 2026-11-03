@@ -28,12 +28,32 @@ function defined<T extends object>(o: T): Partial<T> {
 /** Merge detected loans with user-supplied facts. User fields win; unmatched user loans are added. */
 function mergeLoans(detected: Loan[], supplied: Partial<Loan>[] = []): Loan[] {
   const used = new Set<number>();
-  const merged = detected.map((d) => {
+  const match = new Array<number>(detected.length).fill(-1);
+  const suppliedEmi = (u: Partial<Loan>) =>
+    u.emi ?? (u.principal && u.annualRatePct !== undefined && u.tenureMonths ? emiFor(u.principal, u.annualRatePct, u.tenureMonths) : undefined);
+  const claim = (di: number, ui: number) => { match[di] = ui; used.add(ui); };
+  detected.forEach((d, di) => {
     const i = supplied.findIndex((u, idx) => !used.has(idx) && !!u.lender && sameLender(u.lender, d.lender));
-    if (i < 0) return d;
-    used.add(i);
-    return { ...d, ...defined(supplied[i] as Partial<Loan>) } as Loan;
+    if (i >= 0) claim(di, i);
   });
+  // Lender names can differ ("HDFC Ltd" vs "HDFC Bank"): fall back to the same EMI (within Rs1).
+  detected.forEach((d, di) => {
+    if ((match[di] as number) >= 0) return;
+    const i = supplied.findIndex((u, idx) => {
+      const e = suppliedEmi(u);
+      return !used.has(idx) && e !== undefined && Math.abs(e - d.emi) <= 100;
+    });
+    if (i >= 0) claim(di, i);
+  });
+  // Then a lone unmatched detected loan and a lone unmatched user loan of the same kind.
+  const freeD = detected.map((_, di) => di).filter((di) => (match[di] as number) < 0);
+  const freeU = supplied.map((_, ui) => ui).filter((ui) => !used.has(ui));
+  if (freeD.length === 1 && freeU.length === 1) {
+    const di = freeD[0] as number;
+    const u = supplied[freeU[0] as number] as Partial<Loan>;
+    if (u.kind && u.kind === (detected[di] as Loan).kind) claim(di, freeU[0] as number);
+  }
+  const merged = detected.map((d, di) => ((match[di] as number) < 0 ? d : ({ ...d, ...defined(supplied[match[di] as number] as Partial<Loan>) } as Loan)));
   supplied.forEach((u, idx) => {
     if (used.has(idx)) return;
     const lender = u.lender ?? 'Loan';

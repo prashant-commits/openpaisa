@@ -14,7 +14,7 @@ const EXCLUDED: ReadonlySet<Category> = new Set<Category>([
   'card_payment', 'cash_withdrawal', 'transfers', 'salary', 'refund', 'interest', 'fees_charges',
 ]);
 /** Savings-side credit-card bill payments that Lane A could not match to a card credit. */
-const CARD_BILL_PAYMENT = /CREDIT\s*CARD\s*(BILL\s*)?PAY|\bCC\s*PAY|CARD\s*BILL\s*PAY/i;
+export const CARD_BILL_PAYMENT = /CREDIT\s*CARD\s*(BILL\s*)?PAY|\bCC\s*PAY|CARD\s*BILL\s*PAY|\bCRED\b|CRED\s*CLUB|DREAMPLUG|cred\.club@/i;
 const VARIABLE: ReadonlySet<Category> = new Set<Category>(['utilities', 'telecom']);
 
 const VIDEO = ['netflix', 'hotstar', 'prime video', 'sonyliv', 'sony liv', 'zee5', 'jiocinema', 'jio cinema', 'disney', 'apple tv', 'hbo', 'mubi', 'aha'];
@@ -122,7 +122,12 @@ function mergeSequential(bands: Transaction[][]): Transaction[][] | undefined {
   for (let i = 0; i < sorted.length - 1; i++) {
     const cur = sorted[i] as Transaction[];
     const next = sorted[i + 1] as Transaction[];
-    if (cur.length < 2 || (next.length < 2 && i === sorted.length - 2)) return undefined;
+    if (cur.length < 2) return undefined;
+    if (next.length < 2 && i === sorted.length - 2) {
+      // A single trailing charge counts as a price step only when it is a plausible one.
+      const r = (next[0] as Transaction).amount / (cur[cur.length - 1] as Transaction).amount;
+      if (r > 1.6 || r < 1 / 1.6) return undefined;
+    }
     if (compareIso((cur[cur.length - 1] as Transaction).date, (next[0] as Transaction).date) >= 0) return undefined;
   }
   return sorted;
@@ -133,7 +138,7 @@ interface Series {
   bands?: Transaction[][]; // present when a price change was merged
 }
 
-function analyse(series: Series, key: string, asOf: IsoDate): RecurringPayment | undefined {
+function analyse(series: Series, key: string, asOf: IsoDate, dataEnd: (accountId: string) => IsoDate): RecurringPayment | undefined {
   const txns = series.txns;
   const last = txns[txns.length - 1] as Transaction;
 
@@ -149,7 +154,11 @@ function analyse(series: Series, key: string, asOf: IsoDate): RecurringPayment |
   const f = FREQUENCIES.find((x) => gap >= x.min && gap <= x.max);
   if (!f) return undefined;
   if (txns.length < (f.freq === 'yearly' ? 2 : 3)) return undefined;
-  if (diffDays(last.date, asOf) > f.days * 1.5 + 15) return undefined; // lapsed / cancelled
+  // Lapsed / cancelled: measured against the end of the data for the series' accounts, not asOf.
+  const end = [...byAccount.keys()].map(dataEnd).reduce((a, b) => (compareIso(a, b) >= 0 ? a : b));
+  const limit = f.days * 1.5 + 15;
+  if (diffDays(last.date, end) > limit) return undefined;
+  if (diffDays(last.date, asOf) > Math.max(limit, 365)) return undefined; // long dead whatever the data end
 
   const category = majority(txns.map((t) => t.category).filter((c): c is Category => !!c));
   const kind = kindOf(category, txns.map((t) => t.rawDescription).join(' '));
@@ -200,6 +209,15 @@ function analyse(series: Series, key: string, asOf: IsoDate): RecurringPayment |
 }
 
 export function detectRecurring(txns: Transaction[], asOf: IsoDate): RecurringPayment[] {
+  let overall: IsoDate = asOf;
+  const accountEnd = new Map<string, IsoDate>();
+  txns.forEach((t, i) => {
+    if (i === 0 || compareIso(t.date, overall) > 0) overall = t.date;
+    const e = accountEnd.get(t.accountId);
+    if (!e || compareIso(t.date, e) > 0) accountEnd.set(t.accountId, t.date);
+  });
+  const dataEnd = (accountId: string): IsoDate => accountEnd.get(accountId) ?? overall;
+
   const groups = new Map<string, Transaction[]>();
   for (const t of txns) {
     if (t.direction !== 'debit') continue;
@@ -223,7 +241,7 @@ export function detectRecurring(txns: Transaction[], asOf: IsoDate): RecurringPa
       else for (const b of bands) series.push({ txns: [...b].sort(byDate) });
     }
     for (const s of series) {
-      const r = analyse(s, key, asOf);
+      const r = analyse(s, key, asOf, dataEnd);
       if (r) found.push(r);
     }
   }
