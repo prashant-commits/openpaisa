@@ -17,6 +17,10 @@ export interface InsightContext {
 
 const SEVERITY_RANK: Record<Insight['severity'], number> = { act: 0, warn: 1, info: 2 };
 const NOT_A_PAYEE: ReadonlySet<Category> = new Set<Category>(['transfers', 'card_payment', 'cash_withdrawal', 'salary', 'refund']);
+/** Categories where identical same-day debits are normal or already covered elsewhere. */
+const NOT_A_PURCHASE: ReadonlySet<Category> = new Set<Category>([
+  'cash_withdrawal', 'transfers', 'card_payment', 'investments', 'emi', 'rent', 'salary', 'refund', 'interest', 'fees_charges',
+]);
 const UNKNOWN_DEBIT_MIN: Paise = 1_000_000; // ₹10,000
 
 const periodsPerYear = (r: RecurringPayment): number => Math.round(r.annualCost / r.typicalAmount);
@@ -161,7 +165,8 @@ function cardInsights(statements: ParsedStatement[], asOf: IsoDate): Insight[] {
 function transactionInsights(txns: Transaction[], recurring: RecurringPayment[]): Insight[] {
   const out: Insight[] = [];
   const debits = txns.filter((t) => t.direction === 'debit');
-  const recurringPayees = new Set(recurring.map((r) => r.merchant.toLowerCase()));
+  const recurringIds = new Set(recurring.flatMap((r) => r.occurrences));
+  const recurringPayees = new Set(recurring.map((r) => r.merchant.trim().toLowerCase()));
 
   const firstSeen = new Map<string, Transaction>();
   for (const t of [...debits].sort((a, b) => compareIso(a.date, b.date))) {
@@ -169,7 +174,7 @@ function transactionInsights(txns: Transaction[], recurring: RecurringPayment[])
     if (key && !firstSeen.has(key)) firstSeen.set(key, t);
   }
   for (const [key, t] of firstSeen) {
-    if (t.amount < UNKNOWN_DEBIT_MIN || (t.category && NOT_A_PAYEE.has(t.category)) || recurringPayees.has(key)) continue;
+    if (t.amount < UNKNOWN_DEBIT_MIN || (t.category && NOT_A_PAYEE.has(t.category)) || recurringIds.has(t.id) || recurringPayees.has(key.toLowerCase())) continue;
     const who = t.merchant ?? key;
     out.push({
       id: `unknown_debit-${t.id}`,
@@ -184,7 +189,8 @@ function transactionInsights(txns: Transaction[], recurring: RecurringPayment[])
 
   const same = new Map<string, Transaction[]>();
   for (const t of debits) {
-    const key = `${payeeKey(t)}|${t.amount}|${t.date}`;
+    if (t.category && NOT_A_PURCHASE.has(t.category)) continue;
+    const key = `${t.accountId}|${payeeKey(t)}|${t.amount}|${t.date}`;
     same.set(key, [...(same.get(key) ?? []), t]);
   }
   for (const rows of same.values()) {
@@ -266,7 +272,7 @@ export function buildInsights(ctx: InsightContext): Insight[] {
   const insights: Insight[] = [...dups];
 
   for (const r of ctx.recurring) {
-    if (r.possiblyForgotten && !covered.has(r.id)) {
+    if (r.kind === 'subscription' && r.possiblyForgotten && !covered.has(r.id)) {
       insights.push({
         id: `forgotten_subscription-${r.id}`,
         kind: 'forgotten_subscription',

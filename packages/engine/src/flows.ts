@@ -73,17 +73,18 @@ export function buildUpcoming(recurring: RecurringPayment[], statements: ParsedS
   const end = addDays(asOf, UPCOMING_DAYS);
   const out: UpcomingOutflow[] = [];
 
+  const loanTxnIds = loans.flatMap((l) => l.emiTransactionIds);
   for (const r of recurring) {
     const months = PERIOD_MONTHS[r.frequency];
     for (let k = 0; k < 400; k++) {
       const d = months === 0 ? addDays(r.nextExpectedDate, 7 * k) : addMonths(r.nextExpectedDate, months * k);
       if (compareIso(d, end) > 0) break;
       if (compareIso(d, asOf) < 0) continue;
-      out.push({ date: d, label: r.merchant, amount: r.typicalAmount, source: r.kind === 'emi' ? 'emi' : 'recurring' });
+      out.push({ date: d, label: r.merchant, amount: r.typicalAmount, source: r.kind === 'emi' || loanTxnIds.some((id) => r.occurrences.includes(id)) ? 'emi' : 'recurring' });
     }
   }
 
-  const recurringEmiIds = new Set(recurring.filter((r) => r.kind === 'emi').flatMap((r) => r.occurrences));
+  const recurringEmiIds = new Set(recurring.flatMap((r) => r.occurrences));
   const recurringEmiNames = new Set(recurring.filter((r) => r.kind === 'emi').map((r) => r.merchant.toLowerCase()));
   for (const l of loans) {
     if (!l.startDate || l.emi <= 0) continue;

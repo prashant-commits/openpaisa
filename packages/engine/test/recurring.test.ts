@@ -113,7 +113,39 @@ describe('detectRecurring', () => {
     const t = [...monthly('Netflix', 649, '2026-08-05', 3, { category: 'subscriptions' }), ...monthly('Hotstar', 299, '2026-08-07', 3, { category: 'subscriptions' })];
     expect(subscriptionGroup('Netflix')).toBe('video streaming');
     expect(subscriptionGroup('Swiggy')).toBeUndefined();
-    expect(detectRecurring(t, ASOF).length).toBe(2);
+    const r = detectRecurring(t, ASOF);
+    expect(r.length).toBe(2);
+    expect(r.map((x) => x.possiblyForgotten)).toEqual([true, true]);
+  });
+
+  it('does not group unrelated merchants by substring', () => {
+    expect(subscriptionGroup('Mahabodhi Yoga Studio')).toBeUndefined();
+    expect(subscriptionGroup('Shbo Stores')).toBeUndefined();
+    expect(subscriptionGroup('Aha')).toBe('video streaming');
+    expect(subscriptionGroup('Disney+ Hotstar')).toBe('video streaming');
+  });
+
+  it('ignores a single trailing out-of-band charge', () => {
+    const t = [...monthly('Airtel', 299, '2026-05-10', 5, { category: 'telecom' }), txn({ date: '2026-10-10', amount: 3599, merchant: 'Airtel', category: 'telecom' })];
+    const r = detectRecurring(t, ASOF);
+    expect(r).toHaveLength(1);
+    expect(r[0]?.typicalAmount).toBe(29900);
+    expect(r[0]?.priceChange).toBeUndefined();
+  });
+
+  it('only flags possiblyForgotten on subscriptions', () => {
+    const a = monthly('Bajaj Finance', 18500, '2026-07-05', 4, { category: 'emi' });
+    const b = monthly('Bajaj Finance', 18500, '2026-07-09', 4, { category: 'emi', accountId: 'icici-sav-5678' });
+    const r = detectRecurring([...a, ...b], ASOF);
+    expect(r.length).toBeGreaterThan(0);
+    expect(r.every((x) => !x.possiblyForgotten)).toBe(true);
+  });
+
+  it('excludes unmatched credit-card bill payments but keeps debit-card purchases', () => {
+    const bill = monthly('', 11200, '2026-07-05', 4, { category: 'other', merchant: undefined, channel: 'neft' }).map((t, i) => ({ ...t, rawDescription: `CREDIT CARD PAYMENT-XXXXXX5678` }));
+    expect(detectRecurring(bill, ASOF)).toHaveLength(0);
+    const debit = monthly('', 11200, '2026-07-05', 4, { category: 'other', merchant: undefined }).map((t) => ({ ...t, rawDescription: `DEBIT CARD PURCHASE GYM XYZ` }));
+    expect(detectRecurring(debit, ASOF)).toHaveLength(1);
   });
 
   it('flags one merchant charged on two accounts in the same month', () => {

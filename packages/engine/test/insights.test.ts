@@ -197,3 +197,33 @@ describe('ordering and guardrail', () => {
     expect(buildInsights(ctx([], {}, [statement({}, [])]))).toEqual([]);
   });
 });
+
+describe('integration regressions', () => {
+  it('B-r1-02: merchant-less recurring payee is not an unknown debit', () => {
+    const t = monthly('', 43391.16, '2026-05-05', 6, { merchant: undefined, category: undefined, channel: 'nach' }).map((x, i) => ({ ...x, rawDescription: `NACH/HDFCBANKLTD/HOME LOAN ${i}` }));
+    expect(kinds(buildInsights(ctx(t)))).not.toContain('unknown_debit');
+  });
+
+  it('B-r1-01: overlapping video pair gives only duplicate_subscription', () => {
+    const t = [...monthly('Netflix', 649, '2026-05-05', 6, { category: 'subscriptions' }), ...monthly('Hotstar', 299, '2026-08-07', 3, { category: 'subscriptions' })];
+    const k = kinds(buildInsights(ctx(t)));
+    expect(k).toContain('duplicate_subscription');
+    expect(k).not.toContain('forgotten_subscription');
+  });
+
+  it('B-int-01: duplicate_charge is per account and skips non-purchases', () => {
+    const emiA = txn({ date: '2026-10-05', amount: 18500, merchant: 'Bajaj Finance', category: 'emi' });
+    const emiB = txn({ date: '2026-10-05', amount: 18500, merchant: 'Bajaj Finance', category: 'emi', accountId: 'icici-sav-5678' });
+    const crossAcct = [txn({ date: '2026-10-05', amount: 700, merchant: 'Swiggy' }), txn({ date: '2026-10-05', amount: 700, merchant: 'Swiggy', accountId: 'icici-sav-5678' })];
+    const atm = [txn({ date: '2026-09-15', amount: 10000, merchant: 'ATM', category: 'cash_withdrawal' }), txn({ date: '2026-09-15', amount: 10000, merchant: 'ATM', category: 'cash_withdrawal' })];
+    expect(kinds(buildInsights(ctx([emiA, emiB, ...crossAcct, ...atm])))).not.toContain('duplicate_charge');
+    const same = [txn({ date: '2026-10-05', amount: 450, merchant: 'Swiggy' }), txn({ date: '2026-10-05', amount: 450, merchant: 'Swiggy' })];
+    expect(kinds(buildInsights(ctx(same))).filter((k) => k === 'duplicate_charge')).toHaveLength(1);
+  });
+
+  it('B-int-02: no forgotten_subscription for EMIs on two accounts', () => {
+    const a = monthly('Bajaj Finance', 18500, '2026-07-05', 4, { category: 'emi' });
+    const b = monthly('Bajaj Finance', 18500, '2026-07-09', 4, { category: 'emi', accountId: 'icici-sav-5678' });
+    expect(kinds(buildInsights(ctx([...a, ...b])))).not.toContain('forgotten_subscription');
+  });
+});

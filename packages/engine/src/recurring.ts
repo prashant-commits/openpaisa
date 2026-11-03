@@ -13,6 +13,8 @@ const FREQUENCIES: { freq: Frequency; min: number; max: number; perYear: number;
 const EXCLUDED: ReadonlySet<Category> = new Set<Category>([
   'card_payment', 'cash_withdrawal', 'transfers', 'salary', 'refund', 'interest', 'fees_charges',
 ]);
+/** Savings-side credit-card bill payments that Lane A could not match to a card credit. */
+const CARD_BILL_PAYMENT = /CREDIT\s*CARD\s*(BILL\s*)?PAY|\bCC\s*PAY|CARD\s*BILL\s*PAY/i;
 const VARIABLE: ReadonlySet<Category> = new Set<Category>(['utilities', 'telecom']);
 
 const VIDEO = ['netflix', 'hotstar', 'prime video', 'sonyliv', 'sony liv', 'zee5', 'jiocinema', 'jio cinema', 'disney', 'apple tv', 'hbo', 'mubi', 'aha'];
@@ -20,9 +22,10 @@ const MUSIC = ['spotify', 'gaana', 'wynk', 'jiosaavn', 'saavn', 'apple music', '
 
 /** Group label for overlapping subscription services (e.g. two video OTTs), or undefined. */
 export function subscriptionGroup(merchant: string): string | undefined {
-  const m = merchant.toLowerCase();
-  if (VIDEO.some((v) => m.includes(v))) return 'video streaming';
-  if (MUSIC.some((v) => m.includes(v))) return 'music streaming';
+  const m = ` ${merchant.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `;
+  const has = (v: string) => m.includes(` ${v} `);
+  if (VIDEO.some(has)) return 'video streaming';
+  if (MUSIC.some(has)) return 'music streaming';
   return undefined;
 }
 
@@ -119,7 +122,7 @@ function mergeSequential(bands: Transaction[][]): Transaction[][] | undefined {
   for (let i = 0; i < sorted.length - 1; i++) {
     const cur = sorted[i] as Transaction[];
     const next = sorted[i + 1] as Transaction[];
-    if (cur.length < 2) return undefined;
+    if (cur.length < 2 || (next.length < 2 && i === sorted.length - 2)) return undefined;
     if (compareIso((cur[cur.length - 1] as Transaction).date, (next[0] as Transaction).date) >= 0) return undefined;
   }
   return sorted;
@@ -177,7 +180,7 @@ function analyse(series: Series, key: string, asOf: IsoDate): RecurringPayment |
     const m = t.date.slice(0, 7);
     months.set(m, (months.get(m) ?? new Set()).add(t.accountId));
   }
-  if ([...months.values()].some((s) => s.size >= 2)) possiblyForgotten = true;
+  if (kind === 'subscription' && [...months.values()].some((s) => s.size >= 2)) possiblyForgotten = true;
 
   return {
     id: `rec-${slug(name)}-${f.freq}`,
@@ -201,6 +204,7 @@ export function detectRecurring(txns: Transaction[], asOf: IsoDate): RecurringPa
   for (const t of txns) {
     if (t.direction !== 'debit') continue;
     if (t.category && EXCLUDED.has(t.category)) continue;
+    if (CARD_BILL_PAYMENT.test(t.rawDescription)) continue;
     const key = payeeKey(t);
     if (!key) continue;
     groups.set(key, [...(groups.get(key) ?? []), t]);
@@ -228,6 +232,18 @@ export function detectRecurring(txns: Transaction[], asOf: IsoDate): RecurringPa
   const seen = new Map<string, number>();
   for (const r of found) seen.set(r.id, (seen.get(r.id) ?? 0) + 1);
   for (const r of found) if ((seen.get(r.id) ?? 0) > 1) r.id = `${r.id}-${r.typicalAmount}`;
+
+  // Overlapping services (same group) are all worth a look.
+  const groupCount = new Map<string, number>();
+  const subGroup = (r: RecurringPayment) => (r.kind === 'subscription' ? subscriptionGroup(r.merchant) : undefined);
+  for (const r of found) {
+    const g = subGroup(r);
+    if (g) groupCount.set(g, (groupCount.get(g) ?? 0) + 1);
+  }
+  for (const r of found) {
+    const g = subGroup(r);
+    if (g && (groupCount.get(g) ?? 0) >= 2) r.possiblyForgotten = true;
+  }
 
   return found.sort((a, b) => b.annualCost - a.annualCost || (a.id < b.id ? -1 : 1));
 }

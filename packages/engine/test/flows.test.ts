@@ -128,3 +128,15 @@ describe('safeToSpend', () => {
     expect(nextSalaryDate('2026-11-25', 25)).toBe('2026-12-25');
   });
 });
+
+describe('buildUpcoming loans already in recurring', () => {
+  it('B-r1-05: does not add a loan twice when its NACH series is kind other', () => {
+    const t = monthly('', 12500, '2026-06-05', 5, { category: 'shopping', merchant: undefined, channel: 'nach' }).map((x, i) => ({ ...x, rawDescription: `NACH AXIS PERSONAL LOAN EMI ${i}` }));
+    const recurring = detectRecurring(t, '2026-11-03');
+    expect(recurring).toHaveLength(1);
+    const loan: Loan = { id: 'l1', lender: 'Axis', kind: 'personal', emi: 1250000, principal: 50000000, annualRatePct: 12, tenureMonths: 48, startDate: '2026-06-05', emiTransactionIds: recurring[0]!.occurrences, confidence: 0.6 };
+    const up = buildUpcoming(recurring, [], [loan], '2026-11-03');
+    expect(up.map((u) => u.date)).toEqual(['2026-11-05', '2026-12-05']);
+    expect(up.every((u) => u.source === 'emi' && u.label !== 'Axis EMI')).toBe(true);
+  });
+});
