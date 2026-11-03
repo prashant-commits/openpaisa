@@ -58,7 +58,7 @@ function cleanCardMerchant(d: string): string | undefined {
   return name ? titleCase(name) : undefined;
 }
 
-function analyse(raw: string, direction: Direction, isCard: boolean): Hit {
+function analyseRaw(raw: string, direction: Direction, isCard: boolean): Hit {
   const d = raw.replace(/\s+/g, ' ').trim();
 
   if (/^UPI\b/i.test(d)) return analyseUpi(d);
@@ -93,6 +93,15 @@ function analyse(raw: string, direction: Direction, isCard: boolean): Hit {
     const guess = cleanCardMerchant(d);
     if (guess) hit.merchant = guess;
   }
+  return hit;
+}
+
+/** CRED (and its operator Dreamplug) is how many people pay a card bill, so it is a card payment, not a merchant. */
+const CRED_BILL = /\bCRED\b|\bCRED\s*CLUB\b|DREAMPLUG|CRED\.CLUB@/i;
+
+function analyse(raw: string, direction: Direction, isCard: boolean): Hit {
+  const hit = analyseRaw(raw, direction, isCard);
+  if (CRED_BILL.test(raw)) hit.merchant = 'Card payment';
   return hit;
 }
 

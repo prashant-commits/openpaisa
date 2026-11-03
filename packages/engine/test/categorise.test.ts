@@ -91,6 +91,24 @@ describe('categorise: keyword rules', () => {
   it('person-to-person UPI, IMPS and NEFT are transfers', () => {
     expect(cat('UPI/CR/412345678903/RAHUL SHARMA/SBIN/rahul@okaxis', 'credit')).toBe('transfers');
     expect(cat('IMPS/P2A/412345678904/MOM')).toBe('transfers');
+    expect(cat('UPI/P2P/412345678905/RAHUL SHARMA/SBIN/rahul@okaxis')).toBe('transfers');
+  });
+  it('an unrecognised UPI/IMPS/NEFT/RTGS debit is spend, a credit from a person is a transfer (A-r1-01)', () => {
+    expect(cat('UPI/P2M/412345678901/RAMESH STORES/sbin/ramesh@oksbi')).toBe('other');
+    expect(cat('UPI/DR/412345678903/RAHUL SHARMA/SBIN/rahul@okaxis')).toBe('other');
+    expect(cat('UPI/CR/412345678903/RAHUL SHARMA/SBIN/rahul@okaxis', 'credit')).toBe('transfers');
+    expect(cat('NEFT DR-HDFC0000001-GREEN HOMES')).toBe('other');
+    expect(cat('RTGS CR-HDFC0000001-GREEN HOMES', 'credit')).toBe('transfers');
+  });
+  it('CRED card-bill payments are not subscriptions (A-r1-04)', () => {
+    const raw = 'UPI-CRED CLUB-cred.club@axisb-UTIB0000100-412345678901-Payment';
+    const out = categoriseTransactions(normaliseTransactions([{ ...mk(raw), amount: 3200000 }]))[0]!;
+    expect(out.merchant).toBe('Card payment');
+    expect(out.category).toBe('other');
+    expect(out.channel).toBe('upi');
+    expect(out.upiRef).toBe('412345678901');
+    expect(cat('CRED')).not.toBe('subscriptions');
+    expect(cat('NACH DR-DREAMPLUG TECHNOLOGIES')).not.toBe('subscriptions');
   });
   it('rent', () => expect(cat('NEFT DR-HDFC0000001-GREEN HOMES-RENT NOV')).toBe('rent'));
   it('falls back to other', () => expect(cat('SOMETHING UNREADABLE 77')).toBe('other'));

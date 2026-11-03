@@ -21,7 +21,6 @@ const RAW: [string, Category, string][] = [
   ['Amazon Fresh', 'groceries', 'AMAZON FRESH'],
   ['Kindle', 'subscriptions', 'KINDLE|AMAZON KINDLE'],
   ['Jio Hotstar', 'subscriptions', 'JIOHOTSTAR|HOTSTAR|DISNEY HOTSTAR|JIOCINEMA|JIO CINEMA'],
-  ['Cred Club', 'subscriptions', 'CRED CLUB'],
   // food delivery and dining
   ['Swiggy', 'food_delivery', 'SWIGGY'],
   ['Zomato', 'food_delivery', 'ZOMATO'],

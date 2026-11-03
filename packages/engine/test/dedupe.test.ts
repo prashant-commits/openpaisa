@@ -126,4 +126,50 @@ describe('dedupeTransactions', () => {
     dedupeTransactions([debit, credit]);
     expect(debit.category).toBeUndefined();
   });
+
+  describe('own-account transfers (A-r1-01)', () => {
+    const neftOut = (extra: Partial<Transaction> = {}) => tx({ accountId: 'hdfc-sav-1234', date: '2026-10-05', amount: 5000000, direction: 'debit', rawDescription: 'NEFT DR-ICIC0000001-SELF', channel: 'neft', ...extra });
+    const neftIn = (extra: Partial<Transaction> = {}) => tx({ accountId: 'icici-sav-5678', date: '2026-10-06', amount: 5000000, direction: 'credit', rawDescription: 'NEFT CR-HDFC0000001-RAJ KUMAR', channel: 'neft', ...extra });
+    it('pairs a debit with the same-amount credit on another account the next day', () => {
+      const out = dedupeTransactions([neftOut(), neftIn()]);
+      expect(out.map((t) => t.category)).toEqual(['transfers', 'transfers']);
+    });
+    it('pairs when the credit is dated a day before the debit', () => {
+      const out = dedupeTransactions([neftOut(), neftIn({ date: '2026-10-04' })]);
+      expect(out.map((t) => t.category)).toEqual(['transfers', 'transfers']);
+    });
+    it('leaves a lone debit alone', () => {
+      expect(dedupeTransactions([neftOut()])[0]!.category).toBeUndefined();
+    });
+    it('does not pair across more than 2 days, the same account, differing amounts or card accounts', () => {
+      expect(dedupeTransactions([neftOut(), neftIn({ date: '2026-10-09' })]).every((t) => !t.category)).toBe(true);
+      expect(dedupeTransactions([neftOut(), neftIn({ accountId: 'hdfc-sav-1234' })]).every((t) => !t.category)).toBe(true);
+      expect(dedupeTransactions([neftOut(), neftIn({ amount: 4999900 })]).every((t) => !t.category)).toBe(true);
+      expect(dedupeTransactions([neftOut(), neftIn({ accountId: 'icici-cc-5678' })]).every((t) => !t.category)).toBe(true);
+    });
+    it('pairs each row at most once', () => {
+      const out = dedupeTransactions([neftOut(), neftOut({ id: 'x2', date: '2026-10-05' }), neftIn()]);
+      expect(out.filter((t) => t.category === 'transfers')).toHaveLength(2);
+    });
+    it('pairs on a SELF narration without a transfer channel', () => {
+      const out = dedupeTransactions([
+        tx({ rawDescription: 'FUND TRANSFER TO SELF', amount: 100000 }),
+        tx({ accountId: 'sbi-sav-9999', direction: 'credit', rawDescription: 'OWN ACCOUNT CREDIT', amount: 100000, date: '2026-10-05' }),
+      ]);
+      expect(out.map((t) => t.category)).toEqual(['transfers', 'transfers']);
+    });
+    it('never re-marks card_payment rows', () => {
+      const debit = tx({ rawDescription: 'CREDIT CARD PAYMENT NEFT', channel: 'neft', amount: 1120000 });
+      const cardCredit = tx({ accountId: 'axis-cc-2468', direction: 'credit', rawDescription: 'PAYMENT RECEIVED', amount: 1120000, date: '2026-10-06' });
+      const other = tx({ accountId: 'icici-sav-5678', direction: 'credit', rawDescription: 'NEFT CR-X', channel: 'neft', amount: 1120000, date: '2026-10-06' });
+      const out = dedupeTransactions([debit, other, cardCredit]);
+      expect(out.find((t) => t.id === debit.id)!.category).toBe('card_payment');
+      expect(out.find((t) => t.id === other.id)!.category).toBeUndefined();
+    });
+    it('treats a CRED payment as a card-bill debit', () => {
+      const debit = tx({ rawDescription: 'UPI-CRED CLUB-cred.club@axisb-UTIB0000100-412345678901-Payment', amount: 3200000 });
+      const credit = tx({ accountId: 'hdfc-cc-4321', direction: 'credit', rawDescription: 'PAYMENT RECEIVED - THANK YOU', amount: 3200000, date: '2026-10-06' });
+      expect(dedupeTransactions([debit, credit]).map((t) => t.category)).toEqual(['card_payment', 'card_payment']);
+    });
+  });
 });

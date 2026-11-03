@@ -25,7 +25,12 @@ function fromKeywords(t: Transaction): Category {
   if (/\bSIP\b|\bBSE\b|\bNSE\b|MUTUAL/.test(text)) return 'investments';
   if (/\bATM\b|CASH WDL|CASH WITHDRAWAL/.test(text)) return 'cash_withdrawal';
   if (!credit && /\bRENT\b/.test(text)) return 'rent';
-  if (t.channel === 'upi' || t.channel === 'imps' || t.channel === 'neft' || t.channel === 'rtgs') return 'transfers';
+  if (t.channel === 'upi' || t.channel === 'imps' || t.channel === 'neft' || t.channel === 'rtgs') {
+    // Money from a person is not income; money to a person is a transfer only when marked person-to-person.
+    // Any other unrecognised debit (including P2M) is spend.
+    if (credit || /\bP2[AP]\b/.test(text)) return 'transfers';
+    return 'other';
+  }
   return 'other';
 }
 
